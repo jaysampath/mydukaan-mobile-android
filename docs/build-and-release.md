@@ -214,25 +214,38 @@ node --env-file=.env.dev scripts/sync-contract-test.mjs  # HTTP contract
 # and supabase/tests/security_and_sync.sql against dev
 ```
 
-### The Phase 0 acceptance test — on two real devices
+### The acceptance test — one device plus an emulator
 
-This is the gate. It is not a unit test and cannot be automated meaningfully,
-because the thing being tested is a phone with no signal.
+**This changed with `SYNC_MODE=pull_only`.** The old version of this test put a
+phone in airplane mode and expected a customer created there to survive and
+sync. That is no longer what the app does, and running it now would fail
+correctly: offline writes are off. See
+[ADR 0002](adr/0002-sync-mode-flag.md).
 
-1. Install the dev build on two devices. Sign in to the **same account** on both.
-2. Device A: enable airplane mode.
-3. Device A: add a customer. It must appear in the list **immediately** — no
-   spinner, no delay. The sync bar reads *Offline — your work is saved on this
-   phone* and the row is badged `on device`.
-4. Device B (online): the customer is not there yet. Correct.
-5. Device A: turn airplane mode off.
-6. Within a few seconds: A's row flips to `synced`; B's list shows the customer.
-7. Now the harder half — do step 2–3 on **both** devices while both are
-   offline, with different names. Reconnect both. Both records must survive on
-   both devices. Neither may overwrite the other.
+What still needs proving is that a write on one device reaches another — which
+no longer needs two phones, because the write goes to the server directly.
 
-Step 7 is the one that catches a broken sync design. Append-only ledgers plus
-device-generated UUIDs are what make it pass.
+1. Install the dev build on a device and on an emulator. Sign in as the **same
+   account** on both (`owner.a@dev.local` / `devpassword123` on dev).
+2. Device A: create a customer. It commits on the server, then the local cache
+   refreshes.
+3. Device B: within one sync cycle, the customer appears.
+4. Device A: turn on airplane mode. Reading still works — everything already
+   pulled is in local SQLite, and screens read from there.
+5. Device A, still offline: try to create a customer. It must fail with *"Save
+   customer" needs a connection*, and must **not** appear in the list. A row
+   that showed up and then vanished would be worse than the refusal.
+6. Device A: reconnect. Retry the write. It succeeds.
+
+Step 5 is the one worth watching. `src/api/writes.ts` throws
+`OfflineWriteBlockedError` before calling anything, and `sync()` additionally
+refuses a cycle that finds unexpected local changes — so a screen that wrote to
+SQLite directly fails loudly rather than losing the user's work silently.
+
+**When `SYNC_MODE=full` returns**, restore the original test: both devices
+offline, different records on each, reconnect both, and neither may overwrite
+the other. That is the one that catches a broken sync design, and append-only
+ledgers plus device-generated UUIDs are what make it pass.
 
 ---
 
