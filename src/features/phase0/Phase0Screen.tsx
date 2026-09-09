@@ -16,16 +16,19 @@ import { env } from '../../env';
 import { database, type Customer } from '../../db';
 import { auth, RpcError } from '../../api/supabase';
 import { bootstrapBusiness } from '../../api/rpc';
+import { saveCustomer } from '../../api/writes';
 import { isOnline, startAutoSync, sync, type SyncState } from '../../sync/sync';
 
 /**
  * Phase 0 proof.
  *
  * The acceptance criterion is narrow and worth stating plainly: a record
- * created on device A while offline must appear on device B after both
- * reconnect. Everything on this screen exists to make that observable --
- * writes go straight to the local database and never wait for the network, and
- * the sync bar shows exactly what has and has not reached the server.
+ * created on device A must appear on device B after a sync cycle.
+ * Everything on this screen exists to make that observable --
+ * reads come from the local cache and work with no signal, writes go through
+ * the online RPCs, and the sync bar shows what has reached the server.
+ *
+ * Offline WRITES are off -- see docs/adr/0002-sync-mode-flag.md.
  *
  * Feature work (Phases 1-7) does not start until this is confirmed on two real
  * devices.
@@ -171,19 +174,23 @@ function SyncProof({ userId }: { userId: string }) {
   const addCustomer = useCallback(async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    setName('');
+    setError(null);
 
-    // Local write. Commits to SQLite and returns; the network is irrelevant.
-    await database.write(async () => {
-      await customersCollection.create((c) => {
-        c.name = trimmed;
-      });
-    });
-
-    // Opportunistic push. Failure here is fine and expected offline -- the row
-    // is already durable and startAutoSync will carry it up on reconnect.
-    void sync().catch(() => {});
-  }, [name, customersCollection]);
+    // Goes through the online RPC, not database.write().
+    //
+    // Under SYNC_MODE=pull_only the device must not write to local SQLite: the
+    // row would have no way to reach the server, and sync() refuses a cycle
+    // that finds unexpected local changes rather than letting WatermelonDB
+    // mark it synced and drop it. saveCustomer commits on the server and then
+    // refreshes the cache, so the list still updates from one source.
+    try {
+      await saveCustomer({ name: trimmed });
+      setName('');
+    } catch (e) {
+      // Offline is an expected state here, not a crash. Keep what they typed.
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [name]);
 
   const createBusiness = useCallback(async () => {
     try {
