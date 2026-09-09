@@ -36,9 +36,12 @@ cache fed by `sync_pull`, and every write goes through an online RPC. See
 
 ### The three repos
 
+All three sit side by side under a `mydukaan/` parent folder, each its own git
+repository.
+
 | | |
 |---|---|
-| `mydukaan` | this one — the Expo app |
+| `mydukaan-mobile` | this one — the Expo app |
 | `mydukaan-backend` | migrations, the API, the SQL and HTTP test suites |
 | `mydukaan-admin` | the operator portal (Next.js → Vercel) |
 
