@@ -20,9 +20,24 @@ export type SyncChanges = Record<
   { created: unknown[]; updated: unknown[]; deleted: string[] }
 >;
 
+/**
+ * The sync wire-shape contract the server is running.
+ *
+ * `min_client` is the oldest client contract the server still supports. When it
+ * exceeds the version this build was compiled with, the schema changed in a way
+ * this build cannot survive and sync must stop. `current` merely being higher
+ * is an additive change and is safe to ignore.
+ */
+export interface SchemaContract {
+  current: number;
+  min_client: number;
+}
+
 export interface SyncPullResult {
   changes: SyncChanges;
   timestamp: number;
+  /** Absent on a server older than migration 0009. */
+  contract?: SchemaContract;
 }
 
 export function syncPull(lastPulledAt: number | null): Promise<SyncPullResult> {

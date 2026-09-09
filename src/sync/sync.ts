@@ -3,15 +3,31 @@ import type { SyncDatabaseChangeSet } from '@nozbe/watermelondb/sync';
 import NetInfo from '@react-native-community/netinfo';
 
 import { database } from '../db';
+import { SCHEMA_CONTRACT_VERSION } from '../db/schema';
 import { syncPull, syncPush, type SyncChanges } from '../api/rpc';
 import { RpcError } from '../api/supabase';
+import { offlineWritesEnabled } from '../env';
+import {
+  contractPermitsSync,
+  nonEmptyTables,
+  SchemaOutdatedError,
+  UnexpectedLocalChangesError,
+} from './policy';
 
 /**
  * The whole sync layer.
  *
- * Reads and writes both go through two Postgres functions. There is no direct
- * table access, so tenant scope and write validation are enforced in one place
- * on the server rather than being re-derived on every device.
+ * Reads and writes both go through Postgres functions. There is no direct table
+ * access, so tenant scope and write validation are enforced in one place on the
+ * server rather than being re-derived on every device.
+ *
+ * How much of this runs depends on SYNC_MODE -- see
+ * docs/adr/0002-sync-mode-flag.md:
+ *
+ *   pull_only  only sync_pull runs. Local SQLite is a read cache; writes go
+ *              through the online RPCs in src/api/writes.ts. The server is the
+ *              sole writer, so its invariants cannot be bypassed.
+ *   full       sync_push runs too, and the device can write offline.
  */
 
 export type SyncState =
@@ -55,6 +71,13 @@ async function runSync(): Promise<void> {
 
     pullChanges: async ({ lastPulledAt }) => {
       const result = await syncPull(lastPulledAt ?? null);
+
+      // Check compatibility before applying anything.
+      const required = result.contract?.min_client;
+      if (!contractPermitsSync(required, SCHEMA_CONTRACT_VERSION)) {
+        throw new SchemaOutdatedError(required as number, SCHEMA_CONTRACT_VERSION);
+      }
+
       return {
         changes: result.changes as unknown as SyncDatabaseChangeSet,
         timestamp: result.timestamp,
@@ -62,6 +85,14 @@ async function runSync(): Promise<void> {
     },
 
     pushChanges: async ({ changes, lastPulledAt }) => {
+      if (!offlineWritesEnabled) {
+        // Nothing should have written locally. If something did, say so rather
+        // than letting WatermelonDB mark it synced and drop it on the floor.
+        const dirty = nonEmptyTables(changes);
+        if (dirty.length > 0) throw new UnexpectedLocalChangesError(dirty);
+        return;
+      }
+
       // Strip tables with nothing to say, so the request body stays small on a
       // 2G connection in a market.
       const payload: SyncChanges = {};
@@ -96,9 +127,9 @@ async function runSync(): Promise<void> {
 /**
  * Syncs, but swallows the "you are offline" case.
  *
- * Offline is the normal state for this app, not an error worth showing anyone.
- * A genuine server refusal -- wrong tenant, wrong role, lapsed subscription --
- * is rethrown, because those need to reach the user.
+ * Offline is a normal state for this app, not an error worth showing anyone. A
+ * genuine server refusal -- wrong tenant, wrong role, lapsed subscription -- is
+ * rethrown, as is an incompatible schema, because those need to reach the user.
  */
 export async function syncIfOnline(): Promise<boolean> {
   if (!(await isOnline())) return false;
@@ -107,6 +138,8 @@ export async function syncIfOnline(): Promise<boolean> {
     await sync();
     return true;
   } catch (error) {
+    if (error instanceof SchemaOutdatedError) throw error;
+    if (error instanceof UnexpectedLocalChangesError) throw error;
     if (error instanceof RpcError && error.isForbidden) throw error;
 
     // Anything else is a transport problem. The next cycle picks it up; the
@@ -147,3 +180,5 @@ export function startAutoSync(onStateChange?: (s: SyncState) => void): () => voi
 
   return unsubscribe;
 }
+
+export { SchemaOutdatedError, UnexpectedLocalChangesError } from './policy';

@@ -26,6 +26,28 @@ if (APP_ENV !== 'dev' && APP_ENV !== 'prod') {
   throw new Error(`APP_ENV must be "dev" or "prod", got "${APP_ENV}"`);
 }
 
+/**
+ * Offline writes are behind this flag.
+ *
+ *   pull_only  reads come from local SQLite, kept fresh by sync_pull; every
+ *              write goes through an online RPC. The client never calls
+ *              sync_push, so the server is the only writer and its invariants
+ *              cannot be bypassed.
+ *   full       WatermelonDB pushes local writes. Requires src/domain (the
+ *              platform-agnostic mirror of the write rules) and the sync_push
+ *              re-derive fix first -- see docs/adr/0002-sync-mode-flag.md.
+ *
+ * Baked in at build time like APP_ENV: which writes are possible is not
+ * something a running app should be able to change its mind about.
+ */
+type SyncMode = 'pull_only' | 'full';
+
+const SYNC_MODE = (process.env.SYNC_MODE ?? 'pull_only') as SyncMode;
+
+if (SYNC_MODE !== 'pull_only' && SYNC_MODE !== 'full') {
+  throw new Error(`SYNC_MODE must be "pull_only" or "full", got "${SYNC_MODE}"`);
+}
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
 
@@ -96,5 +118,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appEnv: APP_ENV,
     supabaseUrl: SUPABASE_URL,
     supabasePublishableKey: SUPABASE_PUBLISHABLE_KEY,
+    syncMode: SYNC_MODE,
   },
 });
