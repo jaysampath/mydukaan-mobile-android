@@ -48,13 +48,14 @@ npx expo prebuild --clean
 npx expo run:android            # WatermelonDB is native; Expo Go will not work
 ```
 
-Then, to verify the backend:
+Then:
 
 ```bash
-npm run typecheck
-node --env-file=.env.dev scripts/sync-contract-test.mjs
-# plus supabase/tests/security_and_sync.sql against dev
+npm run verify
 ```
+
+The database, the API and their tests live in the **`mydukaan-backend`** repo.
+The operator portal lives in **`mydukaan-admin`**.
 
 ---
 
@@ -75,14 +76,7 @@ src/
     index.ts            the database instance; UUID v4 id generator
   sync/sync.ts          synchronize() wired to the two RPCs
   features/phase0/      the offline-sync proof screen
-supabase/
-  migrations/           applied in filename order, append-only once applied
-  tests/                the checks a schema change must pass
-  seed/                 dev fixtures
-scripts/
-  sync-contract-test.mjs  exercises the real HTTP API end to end
 docs/
-  supabase-access.md    READ FIRST -- the security model
   build-and-release.md  toolchain, local builds, release
   adr/                  decisions and why
 ```
@@ -105,7 +99,7 @@ PostgREST does not expose and on which `anon`/`authenticated` hold no
 privileges. All access is through `SECURITY DEFINER` functions owned by a role
 without `BYPASSRLS`, so RLS still applies inside them. `business_id` is derived
 from the JWT and never accepted from a client.
-See [docs/supabase-access.md](docs/supabase-access.md).
+See `docs/supabase-access.md` in the `mydukaan-backend` repo.
 
 **4. Business logic is platform-agnostic.** Stock, orders, ledger, and payment
 rules contain no `Platform.OS` checks. Platform branching lives only in the
@@ -157,5 +151,5 @@ Things a reader should not assume are done:
 - **`sync_push` does not re-derive `orders.status` or `orders.total_amount`.**
   A client can push a `CLOSED` order with no payments behind it. Not a
   cross-tenant issue and it cannot corrupt the ledgers, but it must be closed
-  before the order UI ships — see
-  [docs/supabase-access.md](docs/supabase-access.md#known-gap-in-the-push-path).
+  before the order UI ships — see `docs/supabase-access.md` in
+  `mydukaan-backend`.

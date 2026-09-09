@@ -50,7 +50,3 @@ yarn-error.*
 /android
 /ios
 
-# Supabase CLI local state (never commit linked-project credentials)
-supabase/.branches
-supabase/.temp
-supabase/.env

@@ -15,9 +15,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
-    "test:contract": "node --env-file=.env.dev scripts/sync-contract-test.mjs",
-    "db:push:prod": "supabase db push",
-    "verify": "npm run typecheck && npm run test:contract"
+    "verify": "npm run typecheck"
   },
   "dependencies": {
     "@nozbe/watermelondb": "^0.28.0",
@@ -44,7 +42,6 @@
     "@morrowdigital/watermelondb-expo-plugin": "^2.4.0-beta.0",
     "@types/react": "~19.1.0",
     "babel-preset-expo": "~54.0.12",
-    "supabase": "^2.115.0",
     "typescript": "~5.9.2"
   }
 }
