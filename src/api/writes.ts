@@ -78,6 +78,81 @@ export function updateBusinessSettings(settings: rpc.BusinessSettings): Promise<
   return write('Update settings', () => rpc.updateBusinessSettings(settings));
 }
 
+// --- Master data ------------------------------------------------------------
+
+export async function saveCustomer(
+  c: Omit<rpc.CustomerInput, 'id'> & { id?: string },
+): Promise<{ id: string; created: boolean }> {
+  const id = c.id ?? newId();
+  const r = await write('Save customer', () => rpc.upsertCustomer({ ...c, id }));
+  return { id, created: r.created };
+}
+
+export async function saveSupplier(
+  s: Omit<rpc.SupplierInput, 'id'> & { id?: string },
+): Promise<{ id: string; created: boolean }> {
+  const id = s.id ?? newId();
+  const r = await write('Save supplier', () => rpc.upsertSupplier({ ...s, id }));
+  return { id, created: r.created };
+}
+
+export async function saveRawMaterial(
+  m: Omit<rpc.RawMaterialInput, 'id'> & { id?: string },
+): Promise<{ id: string; created: boolean }> {
+  const id = m.id ?? newId();
+  const r = await write('Save material', () => rpc.upsertRawMaterial({ ...m, id }));
+  return { id, created: r.created };
+}
+
+export async function savePackedSku(
+  s: Omit<rpc.PackedSkuInput, 'id'> & { id?: string },
+): Promise<{ id: string; created: boolean }> {
+  const id = s.id ?? newId();
+  const r = await write('Save SKU', () => rpc.upsertPackedSku({ ...s, id }));
+  return { id, created: r.created };
+}
+
+/** Soft. History keeps referencing the row; it just leaves the pickers. */
+export function archiveMaster(table: rpc.ArchivableTable, id: string): Promise<unknown> {
+  return write('Archive', () => rpc.archiveMaster(table, id));
+}
+
+// --- Purchases & packing ----------------------------------------------------
+
+export async function createPurchase(args: {
+  purchaseId?: string;
+  supplierId?: string | null;
+  items: rpc.PurchaseItemInput[];
+  invoiceNo?: string | null;
+  purchasedOn?: string | null;
+  notes?: string | null;
+  receive?: boolean;
+}): Promise<{ purchaseId: string; created: boolean; totalAmount?: number }> {
+  const purchaseId = args.purchaseId ?? newId();
+  const r = await write('Record purchase', () => rpc.createPurchase({ ...args, purchaseId }));
+  return { purchaseId, created: r.created, totalAmount: r.total_amount };
+}
+
+/**
+ * `rawConsumedBase` is everything that left the sack, spillage included. The
+ * server derives wastage from it and refuses a run that would produce more
+ * packed weight than was consumed.
+ */
+export async function createPackingRun(args: {
+  runId?: string;
+  rawMaterialId: string;
+  packedSkuId: string;
+  packetsProduced: number;
+  rawConsumedBase: number;
+  runOn?: string | null;
+  notes?: string | null;
+  complete?: boolean;
+}): Promise<{ runId: string; created: boolean; wastageBase?: number }> {
+  const runId = args.runId ?? newId();
+  const r = await write('Record packing', () => rpc.createPackingRun({ ...args, runId }));
+  return { runId, created: r.created, wastageBase: r.wastage_base };
+}
+
 // --- Inventory & packing ----------------------------------------------------
 
 export function receivePurchase(purchaseId: string): Promise<unknown> {
