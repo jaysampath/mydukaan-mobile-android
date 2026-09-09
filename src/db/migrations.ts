@@ -1,4 +1,4 @@
-import { schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
+import { addColumns, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
 
 /**
  * Local schema migrations.
@@ -13,5 +13,19 @@ import { schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
  * `{ toVersion, steps: [addColumns({...})] }` entry here.
  */
 export const migrations = schemaMigrations({
-  migrations: [],
+  migrations: [
+    {
+      // businesses.features -- the per-business module toggles, e.g. the
+      // packing module. The server had always sent this column; the device
+      // simply never stored it, so the app could not read its own feature
+      // flags. Caught by src/db/schema.contract.test.ts.
+      toVersion: 2,
+      steps: [
+        addColumns({
+          table: 'businesses',
+          columns: [{ name: 'features', type: 'string' }],
+        }),
+      ],
+    },
+  ],
 });

@@ -25,8 +25,31 @@ export class Business extends Model {
   @text('subscription_status') subscriptionStatus!: 'TRIAL' | 'ACTIVE' | 'LAPSED';
   @date('trial_ends_at') trialEndsAt?: Date;
   @field('seat_limit') seatLimit!: number;
+  @text('features') featuresJson!: string;
   @readonly @date('created_at') createdAt!: Date;
   @readonly @date('updated_at') updatedAt!: Date;
+
+  /**
+   * Per-business module toggles, e.g. `{ packing: true }`. Server-owned: the
+   * app reads it and never writes it.
+   *
+   * Parsed defensively -- this arrives as text from the server and a malformed
+   * value must not crash the app on launch. An unreadable value means "no
+   * optional modules", which degrades to a smaller app rather than a broken one.
+   */
+  get features(): Record<string, boolean> {
+    try {
+      const parsed = JSON.parse(this.featuresJson || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /** True when the packing/conversion module is enabled for this business. */
+  get hasPacking(): boolean {
+    return this.features.packing === true;
+  }
 
   /** Lapsed means read-only, never data-locked. Nothing is ever withheld. */
   get isReadOnly(): boolean {

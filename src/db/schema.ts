@@ -20,7 +20,20 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Units, matching the server: RAW quantities are in grams, PACKED quantities
  * are in whole packets.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
+
+/**
+ * The sync wire-shape contract this build was written against.
+ *
+ * The server reports `{current, min_client}` on every pull. If the server's
+ * `min_client` exceeds this number, the schema changed in a way this build
+ * cannot survive and sync stops with an update prompt rather than corrupting
+ * local data. A server whose `current` is merely higher is additive and fine.
+ *
+ * Bump this when you adopt a server change. src/db/schema.contract.test.ts
+ * fails if this repo drifts from mydukaan-backend.
+ */
+export const SCHEMA_CONTRACT_VERSION = 1;
 
 export const schema = appSchema({
   version: SCHEMA_VERSION,
@@ -37,6 +50,9 @@ export const schema = appSchema({
         { name: 'subscription_status', type: 'string' },
         { name: 'trial_ends_at', type: 'number', isOptional: true },
         { name: 'seat_limit', type: 'number' },
+        // jsonb on the server; stored as raw JSON text here. Gates the packing
+        // module -- see Business.features.
+        { name: 'features', type: 'string' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],
