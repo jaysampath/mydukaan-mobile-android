@@ -1,0 +1,50 @@
+{
+  "name": "mydukaan",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "engines": {
+    "node": ">=20.19.0 <23"
+  },
+  "scripts": {
+    "start": "expo start --dev-client",
+    "dev": "node scripts/run-android.mjs",
+    "dev:build": "node scripts/run-android.mjs --build",
+    "dev:clear": "node scripts/run-android.mjs --clear",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "prebuild": "expo prebuild --clean",
+    "typecheck": "tsc --noEmit",
+    "test:contract": "node --env-file=.env.dev scripts/sync-contract-test.mjs",
+    "db:push:prod": "supabase db push",
+    "verify": "npm run typecheck && npm run test:contract"
+  },
+  "dependencies": {
+    "@nozbe/watermelondb": "^0.28.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/netinfo": "11.4.1",
+    "@supabase/supabase-js": "^2.112.3",
+    "dotenv": "^16.6.1",
+    "expo": "~54.0.37",
+    "expo-build-properties": "~1.0.10",
+    "expo-constants": "~18.0.9",
+    "expo-crypto": "~15.0.9",
+    "expo-dev-client": "~6.0.21",
+    "expo-secure-store": "~15.0.8",
+    "expo-status-bar": "~3.0.8",
+    "expo-system-ui": "~6.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-url-polyfill": "^4.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/plugin-proposal-decorators": "^7.29.7",
+    "@morrowdigital/watermelondb-expo-plugin": "^2.4.0-beta.0",
+    "@types/react": "~19.1.0",
+    "babel-preset-expo": "~54.0.12",
+    "supabase": "^2.115.0",
+    "typescript": "~5.9.2"
+  }
+}

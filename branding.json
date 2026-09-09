@@ -1,0 +1,18 @@
+{
+  "displayName": "My Dukaan",
+  "slug": "my-dukaan",
+  "scheme": "mydukaan",
+  "bundleId": "com.launchgrid.apps.mydukaan",
+  "colors": {
+    "primary": "#1F6F54",
+    "onPrimary": "#FFFFFF",
+    "background": "#FFFFFF",
+    "surface": "#F6F7F5",
+    "text": "#12160F",
+    "muted": "#6B7280",
+    "border": "#E3E6E1",
+    "danger": "#B3261E",
+    "success": "#1F6F54",
+    "warning": "#8A6100"
+  }
+}
