@@ -65,6 +65,24 @@ export function bootstrapBusiness(businessName: string, ownerName = ''): Promise
   });
 }
 
+/**
+ * Joins the business an operator invited you to.
+ *
+ * This is the onboarding path: an operator creates the business in the admin
+ * portal and sends the code. It is deliberately the only way into a tenant from
+ * the app -- bootstrapBusiness below creates a NEW tenant and is not part of
+ * this flow.
+ *
+ * Enforces the seat cap server-side, so a business at its limit refuses the
+ * claim rather than quietly going over.
+ */
+export function claimInvite(
+  token: string,
+  fullName: string,
+): Promise<{ business_id: string; role: string; already_member: boolean }> {
+  return callRpc('claim_invite', { p_token: token.trim(), p_full_name: fullName.trim() });
+}
+
 export interface BusinessSettings {
   name?: string;
   phone?: string | null;

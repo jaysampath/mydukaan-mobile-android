@@ -15,23 +15,23 @@ import { branding } from '../../../branding.config';
 import { env } from '../../env';
 import { database, type Customer } from '../../db';
 import { auth, RpcError } from '../../api/supabase';
-import { bootstrapBusiness } from '../../api/rpc';
+import { claimInvite } from '../../api/rpc';
 import { saveCustomer } from '../../api/writes';
 import { isOnline, startAutoSync, sync, type SyncState } from '../../sync/sync';
 
 /**
- * Phase 0 proof.
+ * The whole app, until Phase 1 builds the shell.
  *
- * The acceptance criterion is narrow and worth stating plainly: a record
- * created on device A must appear on device B after a sync cycle.
- * Everything on this screen exists to make that observable --
- * reads come from the local cache and work with no signal, writes go through
- * the online RPCs, and the sync bar shows what has reached the server.
+ * Three states in one file: sign in, join a business with an invitation code,
+ * and the customer list. Phase 1 replaces all of it with real navigation, so
+ * this is deliberately not structured for growth.
  *
- * Offline WRITES are off -- see docs/adr/0002-sync-mode-flag.md.
+ * What it demonstrates: reads come from the local cache and work with no
+ * signal, writes go through the online RPCs and refuse when offline, and the
+ * sync bar shows what has reached the server.
  *
- * Feature work (Phases 1-7) does not start until this is confirmed on two real
- * devices.
+ * Offline WRITES are off -- see docs/adr/0002-sync-mode-flag.md. A record
+ * created here appears on another device after its next pull.
  */
 export function Phase0Screen() {
   const [session, setSession] = useState<{ userId: string } | null>(null);
@@ -61,8 +61,12 @@ export function Phase0Screen() {
 
 // ---------------------------------------------------------------------------
 // Sign in. Phase 1 replaces this with phone + OTP, which needs an SMS provider
-// configured on the Supabase project. Email/password is the stand-in so Phase 0
-// can be proven without waiting on that.
+// configured on the Supabase project. Email/password is the stand-in until then.
+//
+// There is no "create account" here on purpose. Businesses are created by an
+// operator in the admin portal, and a person joins one with the invitation code
+// that produces. Letting the app sign someone up and call bootstrap_business
+// would mint a tenant nobody onboarded, outside the invitation and seat model.
 // ---------------------------------------------------------------------------
 
 function SignIn() {
@@ -71,24 +75,18 @@ function SignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = useCallback(
-    async (mode: 'in' | 'up') => {
-      setBusy(true);
-      setError(null);
-      const { error: err } =
-        mode === 'in'
-          ? await auth.signInWithPassword({ email, password })
-          : await auth.signUp({ email, password });
-      if (err) setError(err.message);
-      setBusy(false);
-    },
-    [email, password],
-  );
+  const submit = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    const { error: err } = await auth.signInWithPassword({ email, password });
+    if (err) setError(err.message);
+    setBusy(false);
+  }, [email, password]);
 
   return (
     <View style={[styles.screen, styles.padded]}>
       <Text style={styles.title}>{branding.displayName}</Text>
-      <Text style={styles.subtitle}>Phase 0 — offline sync proof ({env.appEnv})</Text>
+      <Text style={styles.subtitle}>Sign in to your shop ({env.appEnv})</Text>
 
       <TextInput
         style={styles.input}
@@ -110,11 +108,11 @@ function SignIn() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Button label="Sign in" onPress={() => submit('in')} disabled={busy} />
-      <Button label="Create account" onPress={() => submit('up')} disabled={busy} variant="ghost" />
+      <Button label="Sign in" onPress={submit} disabled={busy} />
 
       <Text style={styles.note}>
-        Sign in on two devices with the same account to run the Phase 0 test.
+        Your shop owner or My Dukaan sends you an invitation code. Sign in, then
+        enter it on the next screen.
       </Text>
     </View>
   );
@@ -130,7 +128,9 @@ function SyncProof({ userId }: { userId: string }) {
   const [online, setOnline] = useState<boolean | null>(null);
   const [name, setName] = useState('');
   const [needsBusiness, setNeedsBusiness] = useState(false);
-  const [businessName, setBusinessName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [joinerName, setJoinerName] = useState('');
+  const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const customersCollection = useMemo(
@@ -192,30 +192,54 @@ function SyncProof({ userId }: { userId: string }) {
     }
   }, [name]);
 
-  const createBusiness = useCallback(async () => {
+  const joinBusiness = useCallback(async () => {
+    if (!inviteCode.trim()) return;
+    setJoining(true);
+    setError(null);
     try {
-      await bootstrapBusiness(businessName.trim() || 'My Shop');
+      await claimInvite(inviteCode, joinerName);
       setNeedsBusiness(false);
       await sync();
     } catch (e) {
+      // The server writes these for a person to read -- an expired code, a
+      // business at its seat limit -- so show them as they are.
       setError(e instanceof RpcError ? e.message : String(e));
+    } finally {
+      setJoining(false);
     }
-  }, [businessName]);
+  }, [inviteCode, joinerName]);
 
+  // Signed in, but not a member of any business yet. The only way in is the
+  // invitation an operator issued -- this screen does not create tenants.
   if (needsBusiness) {
     return (
       <View style={[styles.screen, styles.padded]}>
-        <Text style={styles.title}>Name your business</Text>
-        <Text style={styles.subtitle}>This creates your tenant and starts the 30-day trial.</Text>
+        <Text style={styles.title}>Join your shop</Text>
+        <Text style={styles.subtitle}>
+          Enter the invitation code you were sent.
+        </Text>
         <TextInput
           style={styles.input}
-          placeholder="Business name"
+          placeholder="Invitation code"
           placeholderTextColor={branding.colors.muted}
-          value={businessName}
-          onChangeText={setBusinessName}
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={inviteCode}
+          onChangeText={setInviteCode}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Your name"
+          placeholderTextColor={branding.colors.muted}
+          value={joinerName}
+          onChangeText={setJoinerName}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Button label="Create" onPress={createBusiness} />
+        <Button label={joining ? 'Joining…' : 'Join'} onPress={joinBusiness} disabled={joining} />
+        <Text style={styles.note}>
+          Codes come from My Dukaan or your shop owner. They expire, and each one
+          works once.
+        </Text>
       </View>
     );
   }
@@ -227,8 +251,8 @@ function SyncProof({ userId }: { userId: string }) {
       <View style={styles.padded}>
         <Text style={styles.title}>Customers</Text>
         <Text style={styles.subtitle}>
-          Turn airplane mode on, add a customer, then turn it off. It should appear on the other
-          device within a few seconds.
+          Adding a customer needs a connection. Everything already loaded stays
+          readable with no signal.
         </Text>
 
         <View style={styles.row}>
