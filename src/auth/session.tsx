@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
+import { router } from 'expo-router';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { auth } from '../api/supabase';
@@ -71,12 +72,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
        * it: Phase 0's sign-out called auth.signOut() and left the local
        * database exactly where it was.
        *
-       * Cache first, then the token: if signOut throws, we have still dropped
-       * the data.
+       * Order matters:
+       *  1. Leave the signed-in screens. Nothing else routes on a lost session
+       *     (the shells route on role), so without this the button appears to
+       *     do nothing. Leaving first also means no mounted screen refetches
+       *     into the cache we are about to clear.
+       *  2. Drop the token. A global sign-out needs the network, and on
+       *     failure supabase-js returns an error *and keeps the local session*,
+       *     so fall back to a local sign-out -- a weak signal must never leave
+       *     the phone signed in.
+       *  3. Clear the cache in `finally`, so the data goes even if step 2 throws.
        */
       signOut: async () => {
-        await clearCache(queryClient);
-        await auth.signOut();
+        router.replace('/(auth)/sign-in');
+        try {
+          const { error } = await auth.signOut();
+          if (error) await auth.signOut({ scope: 'local' });
+        } finally {
+          await clearCache(queryClient);
+        }
       },
     }),
     [session, loading, queryClient],
