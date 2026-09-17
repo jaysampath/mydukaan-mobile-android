@@ -2,9 +2,25 @@
 /**
  * Run the app on a connected Android device (or emulator).
  *
- * This project cannot run in Expo Go -- WatermelonDB is a JSI native module,
- * so it needs the custom dev client that `expo run:android` builds. That makes
- * the local loop two-stage, and the stages have very different costs:
+ * MOST OF THE TIME YOU DO NOT NEED THIS SCRIPT. Since WatermelonDB was removed
+ * (docs/adr/0003-remove-offline-sync.md) every native module the app uses is
+ * already inside Expo Go, so the fast loop is:
+ *
+ *   npm start        then open the project in Expo Go
+ *
+ * This script is the dev-client path, for when Expo Go will not do: a release
+ * build, a native config change, an Expo Go that does not support this SDK, or
+ * once react-native-purchases lands for billing and Expo Go stops being an
+ * option at all.
+ *
+ * IMPORTANT: the native module set changed when sync was removed --
+ * WatermelonDB went, and react-native-screens, react-native-gesture-handler,
+ * expo-localization, expo-print, expo-sharing and expo-file-system arrived. A
+ * dev client built before that change is missing all of them and will crash at
+ * runtime rather than fail to build. If you have an old one installed, use
+ * --build to force a rebuild; this script only detects ABSENCE, not staleness.
+ *
+ * The loop is two-stage, and the stages have very different costs:
  *
  *   1. Native build + install  -- minutes. Only needed the first time, and
  *      after any change to native config (bundle id, plugins, native deps).

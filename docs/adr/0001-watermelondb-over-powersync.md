@@ -1,3 +1,9 @@
+> **Superseded by [ADR 0003](./0003-remove-offline-sync.md)** (2026-09-17).
+> WatermelonDB was removed along with offline sync entirely. The comparison
+> below still stands on its own terms and should be re-read before choosing a
+> sync engine again — the deciding factor, that PowerSync would split tenant
+> isolation across RLS *and* YAML Sync Rules, has not changed.
+
 # ADR 0001 — WatermelonDB over PowerSync
 
 **Status:** accepted · 2026-08-22

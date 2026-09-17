@@ -1,3 +1,15 @@
+> **HISTORICAL — read this first.** This is the original brief, kept as a record of
+> intent. Two of its locked decisions have since been reversed, and an agent that
+> obeys this file verbatim will rebuild an architecture that no longer exists:
+>
+> * **"Offline-first is non-negotiable" was reversed on 2026-09-17.** There is no
+>   local database and no sync. See `docs/adr/0003-remove-offline-sync.md`, with the
+>   removed design captured in `docs/archive/offline-sync-architecture.md`.
+> * **WatermelonDB vs PowerSync is settled and then undone** — ADR 0001 chose
+>   WatermelonDB; ADR 0003 removed it entirely.
+>
+> Current state lives in `README.md` and the root `CLAUDE.md`, not here.
+
 ## Project
 
 Build **My Dukaan** (working name — do NOT hardcode branding), a cross-platform mobile app

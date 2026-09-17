@@ -1,7 +1,12 @@
 import { callRpc } from './supabase';
 
 /**
- * The complete data-access surface of this app.
+ * The write half of this app's data-access surface.
+ *
+ * Reads live in ./reads.ts. The split is by direction, not by feature: a write
+ * takes a caller-minted uuid and is idempotent, a read takes filters and is
+ * paginated, and keeping them apart makes each file one thing. Together they
+ * are the whole surface -- there is no third way to reach the database.
  *
  * Every function here maps to one SECURITY DEFINER Postgres function in the
  * exposed `public` schema. There is no other way to read or write server data:
@@ -12,44 +17,6 @@ import { callRpc } from './supabase';
  * tenant from the JWT. A client cannot name a tenant, so it cannot pick the
  * wrong one.
  */
-
-// --- Sync -------------------------------------------------------------------
-
-export type SyncChanges = Record<
-  string,
-  { created: unknown[]; updated: unknown[]; deleted: string[] }
->;
-
-/**
- * The sync wire-shape contract the server is running.
- *
- * `min_client` is the oldest client contract the server still supports. When it
- * exceeds the version this build was compiled with, the schema changed in a way
- * this build cannot survive and sync must stop. `current` merely being higher
- * is an additive change and is safe to ignore.
- */
-export interface SchemaContract {
-  current: number;
-  min_client: number;
-}
-
-export interface SyncPullResult {
-  changes: SyncChanges;
-  timestamp: number;
-  /** Absent on a server older than migration 0009. */
-  contract?: SchemaContract;
-}
-
-export function syncPull(lastPulledAt: number | null): Promise<SyncPullResult> {
-  return callRpc<SyncPullResult>('sync_pull', { last_pulled_at: lastPulledAt });
-}
-
-export function syncPush(changes: SyncChanges, lastPulledAt: number | null): Promise<{ ok: true }> {
-  return callRpc<{ ok: true }>('sync_push', {
-    changes,
-    last_pulled_at: lastPulledAt,
-  });
-}
 
 // --- Onboarding & settings --------------------------------------------------
 
@@ -109,8 +76,8 @@ export function updateBusinessSettings(s: BusinessSettings): Promise<unknown> {
 //
 // Upserts, not create/update pairs: the client mints the id, so "create this"
 // and "save my edit" are the same request and either can be retried safely.
-// Added in migration 0011 -- before it, these tables could only be written by
-// sync_push, which pull_only mode does not use.
+// Added in migration 0011 -- before it, these tables could only be written
+// through the sync push path, which no longer exists (ADR 0003).
 
 export interface CustomerInput {
   id: string;
@@ -275,25 +242,6 @@ export function runConversion(packingRunId: string): Promise<unknown> {
   return callRpc('run_conversion', { p_run_id: packingRunId });
 }
 
-export interface StockSnapshot {
-  raw: Array<{
-    raw_material_id: string;
-    name: string;
-    base_unit: string;
-    qty_base: number;
-  }>;
-  packed: Array<{
-    packed_sku_id: string;
-    name: string;
-    pack_size_base: number;
-    qty_packets: number;
-  }>;
-}
-
-export function getStockSnapshot(): Promise<StockSnapshot> {
-  return callRpc<StockSnapshot>('get_stock_snapshot');
-}
-
 // --- Orders -----------------------------------------------------------------
 
 export interface OrderItemInput {
@@ -348,35 +296,125 @@ export function recordPayment(args: {
   });
 }
 
-export function getCustomerLedger(customerId: string): Promise<unknown> {
-  return callRpc('get_customer_ledger', { p_customer_id: customerId });
+// --- Stock adjustments ------------------------------------------------------
+
+export type AdjustmentEntryType = 'OPENING' | 'ADJUSTMENT' | 'RETURN_IN';
+
+/**
+ * Opening balances, stock-take corrections and customer returns.
+ *
+ * The only way to get existing stock into the app, and the only way to correct
+ * it. `entry_type` deliberately cannot be PURCHASE_IN / PACK_* / SALE_OUT --
+ * those belong to the operations that cause them, and a movement with no
+ * purchase, run or order behind it would be unauditable.
+ *
+ * `mode` is the part worth understanding:
+ *
+ *   SET    the user counted the shelf and typed what they counted. The server
+ *          reads the current sum and works out the signed delta. This is what
+ *          a stock-take actually is, and it keeps arithmetic away from a person
+ *          who is holding a clipboard.
+ *   DELTA  the user knows the movement -- "3 packets were damaged". Here the
+ *          signed number is the thing they know, so ask for it.
+ *
+ * Either way exactly one signed ledger row is written. A count that matches the
+ * books returns `created: false, delta: 0` and is not an error.
+ */
+export function recordStockAdjustment(args: {
+  entryId: string;
+  itemKind: 'RAW' | 'PACKED';
+  itemId: string;
+  mode: 'SET' | 'DELTA';
+  /** Grams for RAW, whole packets for PACKED. */
+  qty: number;
+  entryType?: AdjustmentEntryType;
+  note?: string | null;
+  /** Required for RETURN_IN: the order the goods came back from. */
+  refId?: string | null;
+}): Promise<{
+  entry_id: string;
+  created: boolean;
+  delta: number;
+  qty_before?: number;
+  qty_after?: number;
+  entry_type: AdjustmentEntryType;
+}> {
+  return callRpc('record_stock_adjustment', {
+    p_entry_id: args.entryId,
+    p_item_kind: args.itemKind,
+    p_item_id: args.itemId,
+    p_mode: args.mode,
+    p_qty: args.qty,
+    p_entry_type: args.entryType ?? 'ADJUSTMENT',
+    p_note: args.note ?? null,
+    p_ref_id: args.refId ?? null,
+  });
 }
 
-// --- Receipts ---------------------------------------------------------------
+// --- Staff ------------------------------------------------------------------
+//
+// OWNER only, and seat-capped. These are the tenant-scoped equivalents of the
+// admin_* functions: before them, hiring a packer meant asking a platform
+// operator to issue the invite.
 
-export interface Receipt {
-  business: { name: string; phone: string | null; address: string | null; gstin: string | null };
-  order: {
-    id: string;
-    order_no: number | null;
-    status: string;
-    placed_at: string;
-    total_amount: number;
-  };
-  customer: { name: string; phone: string | null; address: string | null };
-  items: Array<{
-    name: string;
-    pack_size_base: number;
-    qty_packets: number;
-    unit_price: number;
-    line_total: number;
-  }>;
-  paid: number;
-  balance: number;
-  customer_outstanding: number;
-  document_type: 'PAYMENT_RECEIPT';
+export type MemberRoleInput = 'OWNER' | 'MANAGER' | 'PACKER' | 'DELIVERY';
+
+/**
+ * Takes the invite id from the caller, so a timed-out request can be retried
+ * without minting a second token that holds a second seat. (admin_create_invite
+ * mints server-side and does not have this property -- the divergence is
+ * deliberate; see migration 0019.)
+ */
+export function inviteMember(args: {
+  inviteId: string;
+  role: MemberRoleInput;
+  phone?: string | null;
+  email?: string | null;
+}): Promise<{ invite_id: string; invite_token: string; role: string; created: boolean }> {
+  return callRpc('invite_member', {
+    p_invite_id: args.inviteId,
+    p_role: args.role,
+    p_phone: args.phone ?? null,
+    p_email: args.email ?? null,
+  });
 }
 
-export function getReceipt(orderId: string): Promise<Receipt> {
-  return callRpc<Receipt>('get_receipt', { p_order_id: orderId });
+/** Frees the seat a live invite was holding. */
+export function revokeMemberInvite(
+  inviteId: string,
+): Promise<{ invite_id: string; revoked: boolean }> {
+  return callRpc('revoke_member_invite', { p_invite_id: inviteId });
+}
+
+/** Refuses to demote the last active owner (hint: `last_owner`). */
+export function setMemberRole(
+  userId: string,
+  role: MemberRoleInput,
+): Promise<{ user_id: string; role: string }> {
+  return callRpc('set_member_role', { p_user_id: userId, p_role: role });
+}
+
+/**
+ * Refuses to deactivate the last active owner or yourself; reactivating takes a
+ * seat and so respects the cap.
+ */
+export function setMemberActive(
+  userId: string,
+  isActive: boolean,
+): Promise<{ user_id: string; is_active: boolean }> {
+  return callRpc('set_member_active', { p_user_id: userId, p_is_active: isActive });
+}
+
+/**
+ * Your own name and number. Deliberately cannot set `role` -- that would make
+ * every member their own administrator.
+ */
+export function updateMyProfile(args: {
+  fullName?: string | null;
+  phone?: string | null;
+}): Promise<{ user_id: string; full_name: string; phone: string | null; role: string }> {
+  return callRpc('update_my_profile', {
+    p_full_name: args.fullName ?? null,
+    p_phone: args.phone ?? null,
+  });
 }

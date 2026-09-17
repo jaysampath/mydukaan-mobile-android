@@ -1,3 +1,9 @@
+> **Superseded by [ADR 0003](./0003-remove-offline-sync.md)** (2026-09-17).
+> The `SYNC_MODE` flag is gone; so is the local database it gated. The two hard
+> blockers recorded below (`src/domain`, and the `sync_push` re-derive gap) are
+> both moot — the first is cancelled rather than deferred, and the second was
+> closed by deleting the surface rather than repairing it.
+
 # 0002 — Offline writes behind SYNC_MODE, defaulting to pull_only
 
 - **Status:** accepted

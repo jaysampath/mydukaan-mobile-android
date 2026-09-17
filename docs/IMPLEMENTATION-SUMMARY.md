@@ -1,3 +1,10 @@
+> **Historical.** A dated report of Phase 0, kept as written. Two of the
+> decisions it records were reversed on 2026-09-17 — WatermelonDB and the sync
+> layer were removed entirely. See
+> [ADR 0003](./adr/0003-remove-offline-sync.md) and
+> [the archive](./archive/offline-sync-architecture.md). Current state is in
+> `README.md` and the root `CLAUDE.md`.
+
 # Implementation summary — Phase 0
 
 **Date:** 2026-08-22

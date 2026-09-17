@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { env } from '../env';
+import { RpcError } from './rpc-error';
 
 /**
  * The Supabase client.
@@ -31,6 +32,9 @@ const client: SupabaseClient = createClient(env.supabaseUrl, env.supabasePublish
 
 export const auth = client.auth;
 
+// Re-exported so callers keep importing it from one place.
+export { RpcError };
+
 /**
  * Calls a Postgres function in the exposed `public` schema. This is the only
  * data path in the app.
@@ -39,28 +43,6 @@ export const auth = client.auth;
  * SQLSTATE rather than parsing message strings. 42501 is the one that matters
  * most: it covers "not your tenant", "wrong role", and "subscription lapsed".
  */
-export class RpcError extends Error {
-  constructor(
-    message: string,
-    readonly code: string | undefined,
-    readonly hint: string | undefined,
-    readonly fn: string,
-  ) {
-    super(message);
-    this.name = 'RpcError';
-  }
-
-  /** True when the server refused on authorization grounds, not bad input. */
-  get isForbidden(): boolean {
-    return this.code === '42501';
-  }
-
-  /** True when the refusal was specifically "your subscription lapsed". */
-  get isReadOnly(): boolean {
-    return this.hint === 'read_only';
-  }
-}
-
 export async function callRpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
   const { data, error } = await client.rpc(fn, args);
   if (error) {

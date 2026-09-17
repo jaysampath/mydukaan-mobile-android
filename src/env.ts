@@ -9,8 +9,14 @@ import Constants from 'expo-constants';
  */
 type AppEnv = 'dev' | 'prod';
 
-/** See app.config.ts and docs/adr/0002-sync-mode-flag.md. */
-export type SyncMode = 'pull_only' | 'full';
+/**
+ * Which credentials the sign-in screen asks for. See app.config.ts.
+ *
+ * `password` is what works today. `otp` is the intended method for this market
+ * and is blocked on TRAI DLT registration, so the screen is built to switch on
+ * this flag rather than being rewritten later.
+ */
+export type AuthMode = 'password' | 'otp';
 
 const extra = Constants.expoConfig?.extra ?? {};
 
@@ -28,15 +34,7 @@ export const env = {
   appEnv: required('appEnv', extra.appEnv) as AppEnv,
   supabaseUrl: required('supabaseUrl', extra.supabaseUrl),
   supabasePublishableKey: required('supabasePublishableKey', extra.supabasePublishableKey),
-  syncMode: required('syncMode', extra.syncMode) as SyncMode,
+  authMode: required('authMode', extra.authMode) as AuthMode,
 };
 
 export const isDev = env.appEnv === 'dev';
-
-/**
- * True when the device may write to local SQLite and push those rows later.
- *
- * Read this rather than comparing env.syncMode by hand -- when the flag is
- * eventually removed, there is one place to delete.
- */
-export const offlineWritesEnabled = env.syncMode === 'full';

@@ -251,8 +251,53 @@ ledgers plus device-generated UUIDs are what make it pass.
 
 ## Troubleshooting
 
-**`Expo Go` shows a red screen about a missing native module** — expected.
-WatermelonDB needs a development build. Use `npx expo run:android`.
+**On Windows, run `gradlew` from PowerShell or cmd — never from Git Bash.**
+Cost 15 minutes to diagnose once, and the error names none of this.
+
+`GRADLE_USER_HOME` here is `D:\Dev\.gradle`. Git Bash's MSYS layer rewrites a
+Windows path in an environment variable on its way to a child process, turning
+that into a *relative* `d/Dev/.gradle`. Gradle resolves it against the project,
+creates a second half-populated cache at
+`android\d\Dev\.gradle\caches\…\transforms\`, and then fails moving artifacts
+into it:
+
+```
+Could not move temporary workspace (…\android\d\Dev\.gradle\caches\8.14.3\transforms\<hash>-<uuid>)
+to immutable location (…\android\d\Dev\.gradle\caches\8.14.3\transforms\<hash>)
+```
+
+The giveaway is `android\d\Dev` in the path — a Windows drive letter that has
+become a directory name. Nothing is wrong with the build itself.
+
+Cleaning up needs the extended-length prefix, because those transform paths run
+past Windows' 260-character limit and ordinary deletes fail silently:
+
+```powershell
+[System.IO.Directory]::Delete("\\?\D:\myapps\mydukaan\mydukaan-mobile\android\d", $true)
+```
+
+Then rebuild from PowerShell. Same applies to any tool that reads a path out of
+the environment, so prefer PowerShell for native Android work generally.
+
+**Also: don't judge a Gradle build by a piped exit code.** `./gradlew … | tail`
+reports `tail`'s status, so a failed build looks like a pass. Either let gradlew
+write straight to the terminal, or echo `$LASTEXITCODE` (PowerShell) /
+`${PIPESTATUS[0]}` (bash) explicitly and read that.
+
+**`npm run dev` launches a client that crashes on navigation** — the dev client
+on the device is stale. `scripts/run-android.mjs` detects *absence*, not
+staleness, so it skips the build when a package with the right id is already
+installed. The native module set changed when sync was removed (WatermelonDB
+went; react-native-screens, react-native-gesture-handler, expo-localization,
+expo-print, expo-sharing and expo-file-system arrived), so any client built
+before that is missing them. Use `npm run dev:build` to force the rebuild.
+
+**Expo Go shows a red screen about a missing native module** — check the SDK
+version first. Since sync was removed every native module the app uses is inside
+Expo Go, so `npm start` should work; but Expo Go tracks the latest SDK only, and
+this project is pinned to 54. If the installed Expo Go is newer, build the dev
+client instead (`npm run dev:build`). This also becomes permanent once
+`react-native-purchases` lands for billing — Expo Go will not carry it.
 
 **Gradle cannot find the SDK** — set `ANDROID_HOME`, or write
 `sdk.dir=…` into `android/local.properties`.
@@ -260,15 +305,14 @@ WatermelonDB needs a development build. Use `npx expo run:android`.
 **`prebuild` wiped a native edit** — that is what it is for. Move the change
 into a config plugin or `expo-build-properties`.
 
-**Model properties read back `undefined`** — `useDefineForClassFields` has been
-turned on in `tsconfig.json`. It must stay `false`, or ES2022 class-field
-semantics overwrite the accessors WatermelonDB's decorators install.
+**"Couldn't load your shop" on launch** — `get_my_context` failed, and the
+whole shell depends on it. Either the account has no profile (an operator has
+not onboarded this business yet, or the invite was never claimed), or the
+request could not reach the server. The screen offers Retry and Sign out
+deliberately rather than falling into the error boundary.
 
-**Sync fails with `caller is not an active member of any business`** — the
-signed-in user has no profile yet. Call `bootstrap_business` (the app does this
-on the naming screen).
-
-**`Diverged from server`** — should not happen: the server sends everything as
-`updated` and the client runs `sendCreatedAsUpdated`. If it does, the local
-database and the cursor disagree; capture the state before clearing it, because
-that is a real bug worth understanding.
+**Lists show another business's data after switching accounts** — the persisted
+React Query cache was not cleared on sign-out. `clearCache()` in
+`src/data/queryClient.ts` runs before `auth.signOut()`; if that ordering is ever
+changed, this is the symptom. Persisted reads are keyed by query, not by user,
+so nothing on the server side can prevent it. Verify it every release.

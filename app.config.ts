@@ -16,7 +16,7 @@ loadEnv({ path: `.env.${process.env.APP_ENV ?? 'dev'}` });
  *
  * APP_ENV picks which Supabase project the binary talks to. There is no runtime
  * switch and no way to point a production build at dev: the URL and key are
- * baked in from .env.<env> at build time. See /docs/supabase-access.md.
+ * baked in from .env.<env> at build time. See mydukaan-backend/docs/supabase-access.md.
  */
 type AppEnv = 'dev' | 'prod';
 
@@ -27,25 +27,26 @@ if (APP_ENV !== 'dev' && APP_ENV !== 'prod') {
 }
 
 /**
- * Offline writes are behind this flag.
+ * How a user proves who they are.
  *
- *   pull_only  reads come from local SQLite, kept fresh by sync_pull; every
- *              write goes through an online RPC. The client never calls
- *              sync_push, so the server is the only writer and its invariants
- *              cannot be bypassed.
- *   full       WatermelonDB pushes local writes. Requires src/domain (the
- *              platform-agnostic mirror of the write rules) and the sync_push
- *              re-derive fix first -- see docs/adr/0002-sync-mode-flag.md.
+ *   password  email + password. What works today.
+ *   otp       phone + SMS code. The intended method for this market, blocked
+ *             on TRAI DLT entity registration plus sender-ID and template
+ *             approval -- weeks of calendar time, and not yet started.
  *
- * Baked in at build time like APP_ENV: which writes are possible is not
+ * The sign-in screen renders from this flag and drives one of two strategy
+ * modules behind a single interface, so switching is a flag change plus
+ * enabling the provider on the Supabase project, not a screen rewrite.
+ *
+ * Baked in at build time like APP_ENV: which credentials the app accepts is not
  * something a running app should be able to change its mind about.
  */
-type SyncMode = 'pull_only' | 'full';
+type AuthMode = 'password' | 'otp';
 
-const SYNC_MODE = (process.env.SYNC_MODE ?? 'pull_only') as SyncMode;
+const AUTH_MODE = (process.env.AUTH_MODE ?? 'password') as AuthMode;
 
-if (SYNC_MODE !== 'pull_only' && SYNC_MODE !== 'full') {
-  throw new Error(`SYNC_MODE must be "pull_only" or "full", got "${SYNC_MODE}"`);
+if (AUTH_MODE !== 'password' && AUTH_MODE !== 'otp') {
+  throw new Error(`AUTH_MODE must be "password" or "otp", got "${AUTH_MODE}"`);
 }
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -72,6 +73,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '0.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
+  // Deliberately light-only. This app is used outdoors in bright sun on cheap
+  // screens; a high-contrast light theme is the one that has to work, and a
+  // second theme doubles the contrast audit for no user benefit in V1.
   userInterfaceStyle: 'light',
   newArchEnabled: true,
   assetBundlePatterns: ['**/*'],
@@ -92,18 +96,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     edgeToEdgeEnabled: true,
   },
 
+  // Typed routes: expo-router generates route types into .expo/types, so a
+  // router.push to a path that does not exist fails at typecheck rather than at
+  // runtime on someone's phone.
+  experiments: {
+    typedRoutes: true,
+  },
+
   plugins: [
-    // WatermelonDB needs native changes on both platforms (JSI bridge on
-    // Android, the SQLite pod on iOS). This plugin makes them part of prebuild
-    // so `expo prebuild --clean` stays reproducible.
-    '@morrowdigital/watermelondb-expo-plugin',
+    'expo-router',
     [
       'expo-build-properties',
       {
         android: {
-          // WatermelonDB's Android bridge is Kotlin; pin it so a Gradle plugin
-          // bump cannot silently change the toolchain under us.
-          kotlinVersion: '2.0.21',
+          // The kotlinVersion pin that used to live here existed only for
+          // WatermelonDB's Kotlin JSI bridge, which is gone. See ADR 0003.
           minSdkVersion: 24,
         },
         ios: {
@@ -111,6 +118,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
+    'expo-localization',
     'expo-secure-store',
   ],
 
@@ -118,6 +126,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appEnv: APP_ENV,
     supabaseUrl: SUPABASE_URL,
     supabasePublishableKey: SUPABASE_PUBLISHABLE_KEY,
-    syncMode: SYNC_MODE,
+    authMode: AUTH_MODE,
   },
 });
