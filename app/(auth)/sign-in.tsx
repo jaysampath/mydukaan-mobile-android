@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { branding } from '../../branding.config';
 import { strategy } from '../../src/auth/strategies';
 import { mapRpcError } from '../../src/data/errors';
-import { Button, Field, Screen, Text } from '../../src/theme/components';
-import { space } from '../../src/theme/tokens';
+import { Button, Card, Field, Screen, Text } from '../../src/theme/components';
+import { colors, elevation, space } from '../../src/theme/tokens';
 import { t } from '../../src/i18n';
 
 /**
@@ -58,48 +58,58 @@ export default function SignIn() {
 
   return (
     <Screen scroll style={{ flexGrow: 1, justifyContent: 'center', gap: space.lg }}>
-      <View style={{ gap: space.xs, marginBottom: space.md }}>
+      <View style={{ gap: space.sm, alignItems: 'center', marginBottom: space.sm }}>
+        {/* A brand mark from the name, until there is a logo. branding.json
+            stays the only place the name lives. */}
+        <View style={styles.mark}>
+          <Text variant="display" tone="onPrimary">
+            {[...branding.displayName][0]}
+          </Text>
+        </View>
         <Text variant="display">{branding.displayName}</Text>
-        <Text variant="secondary" tone="muted">
+        <Text variant="secondary" tone="muted" style={{ textAlign: 'center' }}>
           {t('auth.signInSubtitle')}
         </Text>
       </View>
 
-      <Field
-        label={otp ? t('auth.phone') : t('auth.email')}
-        value={identifier}
-        onChangeText={setIdentifier}
-        editable={!codeSent}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType={otp ? 'phone-pad' : 'email-address'}
-        textContentType={otp ? 'telephoneNumber' : 'emailAddress'}
-      />
-
-      {otp && !codeSent ? null : (
+      <Card style={{ gap: space.md }}>
         <Field
-          label={otp ? t('auth.otpCode') : t('auth.password')}
-          value={secret}
-          onChangeText={setSecret}
-          secureTextEntry={!otp}
-          keyboardType={otp ? 'number-pad' : 'default'}
+          label={otp ? t('auth.phone') : t('auth.email')}
+          value={identifier}
+          onChangeText={setIdentifier}
+          editable={!codeSent}
           autoCapitalize="none"
           autoCorrect={false}
+          keyboardType={otp ? 'phone-pad' : 'email-address'}
+          textContentType={otp ? 'telephoneNumber' : 'emailAddress'}
         />
-      )}
 
-      {error ? (
-        <Text variant="secondary" tone="danger">
-          {error}
-        </Text>
-      ) : null}
+        {otp && !codeSent ? null : (
+          <Field
+            label={otp ? t('auth.otpCode') : t('auth.password')}
+            value={secret}
+            onChangeText={setSecret}
+            secureTextEntry={!otp}
+            keyboardType={otp ? 'number-pad' : 'default'}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        )}
 
-      <Button
-        label={otp && !codeSent ? t('auth.sendCode') : otp ? t('auth.verify') : t('auth.signIn')}
-        onPress={submit}
-        loading={busy}
-        disabled={!canSubmit}
-      />
+        {error ? (
+          <Text variant="secondary" tone="danger">
+            {error}
+          </Text>
+        ) : null}
+
+        <Button
+          label={otp && !codeSent ? t('auth.sendCode') : otp ? t('auth.verify') : t('auth.signIn')}
+          icon="log-in-outline"
+          onPress={submit}
+          loading={busy}
+          disabled={!canSubmit}
+        />
+      </Card>
 
       <Text variant="meta" tone="muted" style={{ textAlign: 'center' }}>
         {t('auth.noSignUp')}
@@ -107,3 +117,15 @@ export default function SignIn() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  mark: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.raised,
+  },
+});

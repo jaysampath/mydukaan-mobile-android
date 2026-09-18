@@ -1,8 +1,9 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, radius, space, touch } from '../tokens';
-import { Text } from './Text';
+import { colors, elevation, radius, space, touch } from '../tokens';
+import { Icon, type IconName } from './Icon';
+import { Text, type Tone } from './Text';
 
 /** Every screen's outer shell. */
 export function Screen({
@@ -27,8 +28,58 @@ export function Screen({
   return <SafeAreaView style={styles.safe} edges={['bottom']}>{body}</SafeAreaView>;
 }
 
+/**
+ * A white surface lifted off the tinted page. Grouping is carried by the card
+ * edge rather than by borders, which is most of what makes the app read as
+ * current rather than as a form.
+ */
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   return <View style={[styles.card, style]}>{children}</View>;
+}
+
+/**
+ * A titled group: a heading on the page, then its rows in one card.
+ * The heading can carry an icon and a trailing action ("See all").
+ */
+export function Section({
+  title,
+  icon,
+  action,
+  children,
+  flush = true,
+}: {
+  title?: string;
+  icon?: IconName;
+  action?: { label: string; onPress: () => void };
+  children: React.ReactNode;
+  /** Rows run edge to edge inside the card. False gives the card its padding. */
+  flush?: boolean;
+}) {
+  return (
+    <View style={{ gap: space.sm }}>
+      {title ? (
+        <View style={styles.sectionHead}>
+          {icon ? <Icon name={icon} size="sm" tone="muted" /> : null}
+          <Text variant="secondary" tone="muted" style={{ flex: 1, fontWeight: '600' }}>
+            {title}
+          </Text>
+          {action ? (
+            <Pressable
+              onPress={action.onPress}
+              accessibilityRole="button"
+              hitSlop={12}
+              style={styles.sectionAction}
+            >
+              <Text variant="secondary" tone="primary" style={{ fontWeight: '600' }}>
+                {action.label}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      <Card style={flush ? styles.flushCard : undefined}>{children}</Card>
+    </View>
+  );
 }
 
 /**
@@ -37,23 +88,33 @@ export function Card({ children, style }: { children: React.ReactNode; style?: V
  * `title` is 17pt and `subtitle` 15pt, never smaller -- see the type scale note
  * in tokens.ts. The row is at least 56dp so it can be hit reliably while
  * walking, which is how the delivery screens are used.
+ *
+ * `leading` takes an Avatar or an IconBadge. A tappable row with nothing on
+ * the right gets a chevron, so it is obvious it goes somewhere. `card` renders
+ * the row as its own card, for lists of cards on the page.
  */
 export function ListRow({
   title,
   subtitle,
   right,
   onPress,
+  leading,
+  card = false,
   tall = false,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   right?: React.ReactNode;
   onPress?: () => void;
+  /** An <Avatar> or an <IconBadge>. */
+  leading?: React.ReactNode;
+  card?: boolean;
   /** 88dp, for the packer queue: usable with one thumb and floury hands. */
   tall?: boolean;
 }) {
   const content = (
     <View style={[styles.row, tall && { minHeight: 88 }]}>
+      {leading ?? null}
       <View style={styles.rowMain}>
         {typeof title === 'string' ? <Text variant="bodyStrong">{title}</Text> : title}
         {subtitle
@@ -67,39 +128,79 @@ export function ListRow({
           : null}
       </View>
       {right ? <View style={styles.rowRight}>{right}</View> : null}
+      {onPress && !right ? <Icon name="chevron-forward" size="sm" tone="muted" /> : null}
     </View>
   );
 
-  if (!onPress) return content;
+  const shell = card ? styles.rowCard : undefined;
+  if (!onPress) return <View style={shell}>{content}</View>;
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => pressed && { backgroundColor: colors.surface }}
-    >
-      {content}
-    </Pressable>
+    <View style={shell}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        android_ripple={{ color: colors.border }}
+      >
+        {content}
+      </Pressable>
+    </View>
   );
 }
 
-export function Divider() {
-  return <View style={styles.divider} />;
+/** An icon in a tinted circle, sized to sit in a ListRow's `leading` slot. */
+export function IconBadge({
+  name,
+  tone = 'primary',
+  size = 40,
+}: {
+  name: IconName;
+  tone?: Tone;
+  size?: number;
+}) {
+  return (
+    <View
+      style={[
+        styles.badge,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: TINT[tone] ?? colors.surface,
+        },
+      ]}
+    >
+      <Icon name={name} size={size >= 40 ? 'md' : 'sm'} tone={tone} />
+    </View>
+  );
 }
+
+export function Divider({ inset = false }: { inset?: boolean }) {
+  // `inset` lines up with the text of a row that has a 40dp leading avatar.
+  return <View style={[styles.divider, inset && { marginLeft: space.lg + 40 + space.md }]} />;
+}
+
+/** Vertical space between cards in a list of cards. */
+export function Gap() {
+  return <View style={{ height: space.sm }} />;
+}
+
+/** Every tint below is from the measured table in tokens.ts. */
+const TINT: Partial<Record<Tone, string>> = {
+  primary: colors.primarySoft,
+  success: colors.successSoft,
+  warning: colors.warningSoft,
+  danger: colors.dangerSoft,
+  info: colors.infoSoft,
+  muted: colors.surface,
+};
 
 type BannerTone = 'info' | 'warning' | 'danger' | 'success';
 
-const BANNER_BG: Record<BannerTone, string> = {
-  info: colors.surface,
-  warning: '#FFF4E0',
-  danger: '#FDECEA',
-  success: '#E7F3EE',
-};
-
-const BANNER_FG: Record<BannerTone, 'default' | 'warning' | 'danger' | 'success'> = {
-  info: 'default',
-  warning: 'warning',
-  danger: 'danger',
-  success: 'success',
+const BANNER_ICON: Record<BannerTone, IconName> = {
+  info: 'information-circle',
+  warning: 'cloud-offline',
+  danger: 'lock-closed',
+  success: 'checkmark-circle',
 };
 
 /**
@@ -114,16 +215,19 @@ export function Banner({
   title,
   detail,
   action,
+  icon,
 }: {
   tone?: BannerTone;
   title: string;
   detail?: string;
   action?: { label: string; onPress: () => void };
+  icon?: IconName;
 }) {
   return (
-    <View style={[styles.banner, { backgroundColor: BANNER_BG[tone] }]}>
+    <View style={[styles.banner, { backgroundColor: TINT[tone] }]}>
+      <Icon name={icon ?? BANNER_ICON[tone]} tone={tone} />
       <View style={{ flex: 1 }}>
-        <Text variant="bodyStrong" tone={BANNER_FG[tone]}>
+        <Text variant="bodyStrong" tone={tone}>
           {title}
         </Text>
         {detail ? (
@@ -143,27 +247,23 @@ export function Banner({
   );
 }
 
-/** Order status, colour-coded. Dispatch-onward states read as "in motion". */
+/** Order status: a tint, an icon and the word, so it reads at a glance. */
+const STATUS_STYLE: Record<string, { tone: Tone; icon: IconName }> = {
+  PLACED: { tone: 'info', icon: 'time-outline' },
+  PACKED: { tone: 'primary', icon: 'cube-outline' },
+  OUT_FOR_DELIVERY: { tone: 'warning', icon: 'bicycle-outline' },
+  DELIVERED: { tone: 'primary', icon: 'home-outline' },
+  PAYMENT_PENDING: { tone: 'warning', icon: 'wallet-outline' },
+  CLOSED: { tone: 'success', icon: 'checkmark-circle-outline' },
+  CANCELLED: { tone: 'muted', icon: 'close-circle-outline' },
+};
+
 export function StatusPill({ status }: { status: string }) {
-  const tone =
-    status === 'CLOSED'
-      ? 'success'
-      : status === 'CANCELLED'
-        ? 'muted'
-        : status === 'OUT_FOR_DELIVERY'
-          ? 'warning'
-          : 'primary';
-  const bg =
-    tone === 'success'
-      ? '#E7F3EE'
-      : tone === 'warning'
-        ? '#FFF4E0'
-        : tone === 'muted'
-          ? colors.surface
-          : '#E8F1EE';
+  const st = STATUS_STYLE[status] ?? STATUS_STYLE.PLACED;
   return (
-    <View style={[styles.pill, { backgroundColor: bg }]}>
-      <Text variant="meta" tone={tone === 'muted' ? 'muted' : tone}>
+    <View style={[styles.pill, { backgroundColor: TINT[st.tone] }]}>
+      <Icon name={st.icon} size="sm" tone={st.tone} />
+      <Text variant="meta" tone={st.tone} style={{ fontWeight: '600' }}>
         {status.replace(/_/g, ' ')}
       </Text>
     </View>
@@ -180,14 +280,17 @@ export function EmptyState({
   title,
   detail,
   action,
+  icon = 'file-tray-outline',
 }: {
   title: string;
   detail?: string;
   action?: React.ReactNode;
+  icon?: IconName;
 }) {
   return (
     <View style={styles.empty}>
-      <Text variant="heading" tone="muted">
+      <IconBadge name={icon} size={64} />
+      <Text variant="heading" style={{ textAlign: 'center' }}>
         {title}
       </Text>
       {detail ? (
@@ -213,44 +316,64 @@ export function Loading({ label }: { label?: string }) {
   );
 }
 
-/** A labelled figure, for summary tiles and totals. */
+/**
+ * A labelled figure, for summary tiles and totals. With an icon it renders as
+ * a dashboard tile: tinted icon badge, figure, label.
+ */
 export function Stat({
   label,
   children,
   onPress,
+  icon,
+  tone = 'primary',
 }: {
   label: string;
   children: React.ReactNode;
   onPress?: () => void;
+  icon?: IconName;
+  tone?: Tone;
 }) {
   const inner = (
     <View style={styles.stat}>
-      <Text variant="meta" tone="muted">
+      {icon ? <IconBadge name={icon} tone={tone} size={36} /> : null}
+      {children}
+      <Text variant="secondary" tone="muted">
         {label}
       </Text>
-      {children}
     </View>
   );
-  if (!onPress) return inner;
+  if (!onPress) return <View style={{ flex: 1 }}>{inner}</View>;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={{ flex: 1 }}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.85 }]}
+    >
       {inner}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  body: { flex: 1, backgroundColor: colors.background },
-  scrollBody: { padding: space.lg, gap: space.md, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: colors.page },
+  body: { flex: 1, backgroundColor: colors.page },
+  scrollBody: { padding: space.lg, gap: space.md, backgroundColor: colors.page },
   card: {
     backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: space.lg,
     gap: space.sm,
+    ...elevation.card,
   },
+  flushCard: { padding: 0, gap: 0, overflow: 'hidden' },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.xs,
+    minHeight: 24,
+  },
+  sectionAction: { minHeight: 24, justifyContent: 'center' },
   row: {
     minHeight: touch.row,
     flexDirection: 'row',
@@ -259,8 +382,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
   },
+  rowCard: {
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    ...elevation.card,
+  },
   rowMain: { flex: 1, gap: 2 },
-  rowRight: { alignItems: 'flex-end', gap: 2 },
+  rowRight: { alignItems: 'flex-end', gap: space.xs },
+  badge: { alignItems: 'center', justifyContent: 'center' },
   divider: { height: 1, backgroundColor: colors.border, marginHorizontal: space.lg },
   banner: {
     flexDirection: 'row',
@@ -271,6 +401,9 @@ const styles = StyleSheet.create({
   },
   bannerAction: { minHeight: touch.min, justifyContent: 'center', paddingHorizontal: space.sm },
   pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
     paddingHorizontal: space.sm,
     paddingVertical: 3,
     borderRadius: radius.pill,
@@ -285,11 +418,12 @@ const styles = StyleSheet.create({
   },
   stat: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: space.md,
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    padding: space.lg,
     gap: space.xs,
     minHeight: 72,
     justifyContent: 'center',
+    ...elevation.card,
   },
 });

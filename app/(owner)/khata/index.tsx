@@ -4,9 +4,12 @@ import { FlatList, RefreshControl, View } from 'react-native';
 
 import { useCustomerBalances } from '../../../src/data/queries';
 import {
-  Divider,
+  Avatar,
+  Card,
   EmptyState,
+  Gap,
   Header,
+  IconBadge,
   ListRow,
   Loading,
   Money,
@@ -41,16 +44,22 @@ export default function Khata() {
       <Header title={t('khata.title')} back={false} />
 
       <View style={{ paddingHorizontal: space.lg, paddingTop: space.md }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text variant="secondary" tone="muted">
-            {t('khata.totalOutstanding')}
-          </Text>
-          <Money
-            value={data?.outstanding_total ?? 0}
-            variant="numeric"
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <IconBadge
+            name="wallet-outline"
             tone={(data?.outstanding_total ?? 0) > 0 ? 'warning' : 'success'}
           />
-        </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="secondary" tone="muted">
+              {t('khata.totalOutstanding')}
+            </Text>
+            <Money
+              value={data?.outstanding_total ?? 0}
+              variant="numeric"
+              tone={(data?.outstanding_total ?? 0) > 0 ? 'warning' : 'success'}
+            />
+          </View>
+        </Card>
       </View>
 
       <SearchBar value={search} onChangeText={setSearch} placeholder={t('common.search')} />
@@ -61,13 +70,20 @@ export default function Khata() {
         <FlatList
           data={rows}
           keyExtractor={(c) => c.customer_id}
-          ItemSeparatorComponent={Divider}
+          ItemSeparatorComponent={Gap}
+          contentContainerStyle={{ padding: space.lg, paddingTop: space.xs, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
           ListEmptyComponent={
-            <EmptyState title={t('khata.empty')} detail={t('khata.emptyDetail')} />
+            <EmptyState
+              icon="checkmark-done-outline"
+              title={t('khata.empty')}
+              detail={t('khata.emptyDetail')}
+            />
           }
           renderItem={({ item }) => (
             <ListRow
+              card
+              leading={<Avatar name={item.name} />}
               onPress={() => router.push(`/(owner)/khata/${item.customer_id}`)}
               title={item.name}
               subtitle={

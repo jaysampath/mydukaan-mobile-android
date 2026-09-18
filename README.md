@@ -89,7 +89,13 @@ npm start                       # then open it in Expo Go
 ```
 
 No `prebuild` and no custom dev client: nothing in the app needs native code
-that Expo Go does not already carry. That changes when RevenueCat lands, because
+that Expo Go does not already carry.
+
+If you use the **dev client** on a phone (`npm run dev`), rebuild it once with
+`npm run dev:build` after pulling the UI refresh: it added `expo-font` (for the
+Ionicons in the tab bar and drawer), which is a native module. A dev client
+built before that shows blank icons or fails to load the font. Expo Go already
+has it. That changes when RevenueCat lands, because
 `react-native-purchases` is not in Expo Go — at that point
 `npx expo prebuild --clean && npx expo run:android` comes back.
 

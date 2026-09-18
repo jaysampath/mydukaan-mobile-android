@@ -5,15 +5,24 @@ import { formatMoney } from '../../format/money';
 import { formatPackSize, formatPackedQty, formatQty, type BaseUnit, type ItemKind } from '../../format/qty';
 
 type Variant = keyof typeof typeScale;
-type Tone = 'default' | 'muted' | 'primary' | 'danger' | 'success' | 'warning' | 'onPrimary';
+export type Tone =
+  | 'default'
+  | 'muted'
+  | 'primary'
+  | 'danger'
+  | 'success'
+  | 'warning'
+  | 'info'
+  | 'onPrimary';
 
-const TONES: Record<Tone, string> = {
+export const TONES: Record<Tone, string> = {
   default: colors.text,
   muted: colors.muted,
   primary: colors.primary,
   danger: colors.danger,
   success: colors.success,
   warning: colors.warning,
+  info: colors.info,
   onPrimary: colors.onPrimary,
 };
 

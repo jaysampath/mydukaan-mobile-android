@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { useMe } from '../../auth/context';
 import { useIsOnline } from '../../data/online';
 import { Banner } from './Layout';
+import { useDrawer } from './Drawer';
+import { Icon } from './Icon';
 import { Text } from './Text';
 import { colors, space, touch } from '../tokens';
 import { t } from '../../i18n';
@@ -20,6 +22,9 @@ import { t } from '../../i18n';
  *              data is still theirs -- a lapse is read-only, never a data lock.
  *   offline    reads are coming from the persisted cache. Writes will fail
  *              fast rather than queue, so saying so up front is honest.
+ *
+ * Rendered by <Header>, under the title bar. They used to sit above the shell,
+ * which with edge-to-edge put them underneath the system status bar.
  */
 export function StatusBanners() {
   const me = useMe();
@@ -38,23 +43,32 @@ export function StatusBanners() {
 }
 
 /**
- * A screen header with a back affordance.
+ * The app bar.
  *
- * Hand-rolled rather than using the Stack header so the back target is always
+ * Hand-rolled rather than using the Stack header so both buttons are always
  * large enough (48dp) and the title can use our own type scale.
+ *
+ * `back={false}` marks a top-level screen. Those get the hamburger that opens
+ * the side drawer instead of a back arrow -- every root screen already passed
+ * `back={false}`, so they all got the menu without a per-screen edit.
  */
 export function Header({
   title,
   subtitle,
   back = true,
+  onBack,
   right,
 }: {
   title: string;
   subtitle?: string;
   back?: boolean;
+  /** For a screen that is a mode of its parent rather than a route. */
+  onBack?: () => void;
   right?: React.ReactNode;
 }) {
   const router = useRouter();
+  const drawer = useDrawer();
+
   return (
     <SafeAreaView edges={['top']} style={styles.headerSafe}>
       <View style={styles.header}>
@@ -62,43 +76,60 @@ export function Header({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-            onPress={() => router.back()}
-            style={styles.backBtn}
+            onPress={onBack ?? (() => router.back())}
+            android_ripple={{ color: colors.border, borderless: true }}
+            style={styles.iconBtn}
           >
-            <Text variant="title" tone="primary">
-              ‹
-            </Text>
+            <Icon name="arrow-back" tone="default" />
           </Pressable>
-        ) : null}
+        ) : drawer ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('drawer.open')}
+            onPress={drawer.open}
+            android_ripple={{ color: colors.border, borderless: true }}
+            style={styles.iconBtn}
+          >
+            <Icon name="menu" tone="default" />
+          </Pressable>
+        ) : (
+          <View style={{ width: space.sm }} />
+        )}
         <View style={{ flex: 1 }}>
-          <Text variant="heading">{title}</Text>
+          <Text variant={back ? 'heading' : 'title'} numberOfLines={1}>
+            {title}
+          </Text>
           {subtitle ? (
-            <Text variant="meta" tone="muted">
+            <Text variant="meta" tone="muted" numberOfLines={1}>
               {subtitle}
             </Text>
           ) : null}
         </View>
         {right}
       </View>
+      <StatusBanners />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerSafe: { backgroundColor: colors.background },
+  headerSafe: {
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: space.xs,
+    paddingHorizontal: space.xs,
+    paddingVertical: space.xs,
     minHeight: touch.row,
   },
-  backBtn: {
+  iconBtn: {
     width: touch.min,
     height: touch.min,
+    borderRadius: touch.min / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,10 +1,13 @@
-export { Text, Money, Qty, Packets, PackSize } from './Text';
-export { Button, ArmedButton, ActionBar } from './Button';
+export { Text, Money, Qty, Packets, PackSize, type Tone } from './Text';
+export { Button, ArmedButton, ActionBar, Fab, FAB_CLEARANCE } from './Button';
 export {
   Screen,
   Card,
+  Section,
   ListRow,
+  IconBadge,
   Divider,
+  Gap,
   Banner,
   StatusPill,
   EmptyState,
@@ -13,3 +16,6 @@ export {
 } from './Layout';
 export { Field, NumberField, Stepper, SearchBar, Choice } from './Field';
 export { StatusBanners, Header } from './Chrome';
+export { Icon, type IconName } from './Icon';
+export { Avatar } from './Avatar';
+export { DrawerProvider, useDrawer } from './Drawer';

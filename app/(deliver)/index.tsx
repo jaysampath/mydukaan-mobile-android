@@ -1,12 +1,11 @@
 import { useRouter } from 'expo-router';
 import { FlatList, RefreshControl } from 'react-native';
 
-import { useSession } from '../../src/auth/session';
 import { useOrders } from '../../src/data/queries';
 import {
-  Button,
-  Divider,
+  Avatar,
   EmptyState,
+  Gap,
   Header,
   ListRow,
   Loading,
@@ -14,6 +13,7 @@ import {
   StatusPill,
   Text,
 } from '../../src/theme/components';
+import { space } from '../../src/theme/tokens';
 import { t } from '../../src/i18n';
 
 /**
@@ -25,7 +25,6 @@ import { t } from '../../src/i18n';
  */
 export default function Deliveries() {
   const router = useRouter();
-  const { signOut } = useSession();
   const { data, isLoading, isRefetching, refetch } = useOrders({
     statuses: ['OUT_FOR_DELIVERY', 'DELIVERED', 'PAYMENT_PENDING'],
   });
@@ -34,27 +33,28 @@ export default function Deliveries() {
 
   return (
     <>
-      <Header
-        title={t('deliver.title')}
-        back={false}
-        right={
-          <Button label={t('common.signOut')} kind="ghost" block={false} onPress={signOut} />
-        }
-      />
+      <Header title={t('deliver.title')} back={false} />
       {isLoading && rows.length === 0 ? (
         <Loading />
       ) : (
         <FlatList
           data={rows}
           keyExtractor={(o) => o.id}
-          ItemSeparatorComponent={Divider}
+          ItemSeparatorComponent={Gap}
+          contentContainerStyle={{ padding: space.lg, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
           ListEmptyComponent={
-            <EmptyState title={t('deliver.empty')} detail={t('deliver.emptyDetail')} />
+            <EmptyState
+              icon="bicycle-outline"
+              title={t('deliver.empty')}
+              detail={t('deliver.emptyDetail')}
+            />
           }
           renderItem={({ item }) => (
             <ListRow
+              card
               tall
+              leading={<Avatar name={item.customer_name} size={48} />}
               onPress={() => router.push(`/(deliver)/${item.id}`)}
               title={<Text variant="title">{item.customer_name}</Text>}
               subtitle={item.customer_phone ?? undefined}

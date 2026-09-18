@@ -1,18 +1,22 @@
 import { Redirect, Tabs } from 'expo-router';
-import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMe } from '../../src/auth/context';
-import { Loading, Screen, StatusBanners } from '../../src/theme/components';
+import { tab } from '../../src/nav/tabIcon';
+import { DrawerProvider, Loading, Screen } from '../../src/theme/components';
 import { colors, space, type as typeScale } from '../../src/theme/tokens';
+import { t } from '../../src/i18n';
 
 /**
  * The owner/manager shell.
  *
  * OWNER and MANAGER share it because they differ by a handful of routes, and
- * duplicating a five-tab shell to hide three of them would be worse than
- * guarding those three. PACKER and DELIVERY get their own groups instead --
- * their app is genuinely a different app, not this one with things removed.
+ * duplicating the shell to hide three of them would be worse than guarding
+ * those three. PACKER and DELIVERY get their own groups instead -- their app is
+ * genuinely a different app, not this one with things removed.
+ *
+ * Four tabs for the hourly work; everything occasional (catalog, staff,
+ * settings, profile, sign-out) lives in the side drawer behind the hamburger.
  */
 export default function OwnerLayout() {
   const me = useMe();
@@ -33,64 +37,49 @@ export default function OwnerLayout() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBanners />
+    <DrawerProvider>
       <Tabs
         screenOptions={{
           headerShown: false,
+          sceneStyle: { backgroundColor: colors.page },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.muted,
           /**
            * `edgeToEdgeEnabled: true` in app.config.ts means the app draws
            * behind the system bars, so the tab bar must be lifted clear of the
-           * gesture/navigation area itself. A hardcoded height cannot do that:
-           * it overrides react-navigation's inset-aware sizing and the home
-           * button ends up drawn straight through the labels.
+           * gesture/navigation area itself: an explicit height plus the real
+           * bottom inset. A bare hardcoded height draws the system home button
+           * straight through the labels.
            *
-           * So: set the height explicitly and add the real bottom inset to it.
+           * 64dp holds a 24dp icon over a 13pt label and clears the 48dp touch
+           * minimum.
            */
           tabBarStyle: {
             borderTopColor: colors.border,
             backgroundColor: colors.background,
-            // An EXPLICIT height is required here. bottom-tabs derives its
-            // height from the icon plus the label, so hiding the icon (below)
-            // collapses the bar to nothing -- and `height: undefined` does not
-            // restore the default, it just leaves it collapsed. 56dp clears the
-            // 48dp touch minimum; the inset lifts it above the system nav.
-            height: 56 + insets.bottom,
-            paddingTop: space.xs,
-            paddingBottom: insets.bottom,
+            height: 64 + insets.bottom,
+            paddingTop: space.sm,
+            paddingBottom: insets.bottom + space.xs,
           },
-          /**
-           * Text-only tabs. No icon set is installed, and for this audience a
-           * word is clearer than a glyph -- but react-navigation renders a
-           * placeholder box when `tabBarIcon` is absent, which is worse than
-           * either. Returning null removes it and leaves the label room to be
-           * legible at 15pt.
-           */
-          tabBarIcon: () => null,
           tabBarLabelStyle: {
-            fontSize: typeScale.secondary.fontSize,
+            fontSize: typeScale.meta.fontSize,
             fontWeight: '600',
-            marginBottom: 0,
           },
-          tabBarIconStyle: { display: 'none' },
         }}
       >
-        <Tabs.Screen name="index" options={{ title: 'Today' }} />
-        <Tabs.Screen name="orders" options={{ title: 'Orders' }} />
-        <Tabs.Screen name="stock" options={{ title: 'Stock' }} />
-        <Tabs.Screen name="khata" options={{ title: 'Khata' }} />
-        <Tabs.Screen name="more" options={{ title: 'More' }} />
+        <Tabs.Screen name="index" options={tab(t('home.title'), 'home')} />
+        <Tabs.Screen name="orders" options={tab(t('orders.title'), 'receipt')} />
+        <Tabs.Screen name="stock" options={tab(t('stock.title'), 'cube')} />
+        <Tabs.Screen name="khata" options={tab(t('khata.title'), 'book')} />
         {/*
-          catalog/ is a route directory, so expo-router registers it as a tab
-          automatically. It is reached from More instead -- products and people
-          are set up occasionally, not navigated to hourly -- so it is hidden
-          from the bar rather than deleted. `href: null` keeps the routes
-          reachable while removing the tab.
+          catalog/ and more/ are route directories, so expo-router would
+          register them as tabs. They are reached from the drawer instead --
+          set up occasionally, not navigated to hourly -- so `href: null` keeps
+          the routes while removing the tabs.
         */}
         <Tabs.Screen name="catalog" options={{ href: null }} />
+        <Tabs.Screen name="more" options={{ href: null }} />
       </Tabs>
-    </View>
+    </DrawerProvider>
   );
 }

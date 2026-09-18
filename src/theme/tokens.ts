@@ -42,7 +42,48 @@ export const colors = {
    * later without a screen edit.
    */
   dispatch: branding.colors.warning,
+
+  /**
+   * The page behind the cards. Screens sit on the tinted surface and content
+   * sits on white cards above it, so grouping is carried by the card edge and
+   * not by 1px rules. Text contrast was already measured against both.
+   */
+  page: branding.colors.surface,
+
+  /**
+   * Soft tints, for pills, icon tiles and avatars. Derived, not brand -- they
+   * were literals scattered through Layout.tsx before the refresh.
+   *
+   * Measured with the foreground each one is paired with:
+   *
+   *   primarySoft #E8F1EE  primary 5.27  text 15.90  muted 5.56
+   *   warningSoft #FFF4E0  warning 5.08  muted 5.87
+   *   dangerSoft  #FDECEA  danger  5.72
+   *   infoSoft    #E8EEF8  info    6.19   (info #2B5797)
+   *
+   * Hero card: white on primary 6.07, primarySoft on primary 5.27.
+   */
+  primarySoft: '#E8F1EE',
+  warningSoft: '#FFF4E0',
+  dangerSoft: '#FDECEA',
+  successSoft: '#E8F1EE',
+  info: '#2B5797',
+  infoSoft: '#E8EEF8',
+  scrim: 'rgba(0, 0, 0, 0.4)',
 } as const;
+
+/**
+ * Avatar colours, picked by hashing the name so a customer keeps the same
+ * colour everywhere. Each pair measured at 5.9:1 or better.
+ */
+export const avatarPalette = [
+  { bg: '#E8F1EE', fg: '#1F6F54' },
+  { bg: '#E8EEF8', fg: '#2B5797' },
+  { bg: '#F3E8F6', fg: '#6B3A7D' },
+  { bg: '#E6F4F6', fg: '#1B6572' },
+  { bg: '#F6EDE4', fg: '#7A4A1E' },
+  { bg: '#FFF4E0', fg: '#8A6100' },
+] as const;
 
 /** 4pt grid. Large enough steps that nothing needs a magic number. */
 export const space = {
@@ -52,6 +93,34 @@ export const space = {
   lg: 16,
   xl: 24,
   xxl: 32,
+} as const;
+
+/**
+ * Lift. Android draws `elevation` natively; the shadow* keys are the iOS
+ * equivalent, kept so the code stays platform-agnostic.
+ */
+export const elevation = {
+  card: {
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  raised: {
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+} as const;
+
+/** Icon sizes. 24 is the Material default; 20 only beside secondary text. */
+export const icon = {
+  sm: 20,
+  md: 24,
+  lg: 28,
 } as const;
 
 export const radius = {
@@ -113,6 +182,6 @@ export const touch = {
 /** How long a destructive confirm stays disabled, to absorb a carried-over tap. */
 export const CONFIRM_ARM_MS = 700;
 
-export const theme = { colors, space, radius, type, touch } as const;
+export const theme = { colors, space, radius, type, touch, elevation, icon } as const;
 
 export type Theme = typeof theme;

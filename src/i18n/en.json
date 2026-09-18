@@ -12,7 +12,8 @@
     "somethingWrong": "Something went wrong",
     "noConnection": "No connection. Check your network and try again.",
     "notAllowed": "You do not have permission to do that.",
-    "notFound": "That record no longer exists."
+    "notFound": "That record no longer exists.",
+    "all": "All"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -53,7 +54,17 @@
     "cashCollected": "Cash today",
     "outstanding": "Outstanding",
     "lowStock": "Low stock",
-    "newOrder": "New order"
+    "newOrder": "New order",
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "quickActions": "Quick actions",
+    "addCustomer": "Customers",
+    "enterStock": "Enter stock",
+    "lowStockDetail": "{{count}} item(s) at or below the level you set.",
+    "seeOrders": "See orders"
   },
   "stock": {
     "title": "Stock",
@@ -106,7 +117,9 @@
     "onHand": "On hand",
     "receipt": "Receipt",
     "share": "Share",
-    "noItems": "Add at least one item."
+    "noItems": "Add at least one item.",
+    "unpaid": "Unpaid",
+    "itemCount": "{{count}} item(s)"
   },
   "packer": {
     "title": "To pack",
@@ -192,5 +205,32 @@
     "MANAGER": "Manager",
     "PACKER": "Packer",
     "DELIVERY": "Delivery"
+  },
+  "drawer": {
+    "open": "Open menu",
+    "close": "Close menu",
+    "catalog": "Products & people",
+    "operations": "Operations",
+    "business": "Business",
+    "editProfile": "Edit profile",
+    "noName": "Add your name",
+    "version": "Version {{version}}"
+  },
+  "subscription": {
+    "active": "Active",
+    "trial": "Trial",
+    "readOnly": "Read-only",
+    "trialDaysLeft": {
+      "one": "Trial · 1 day left",
+      "other": "Trial · {{count}} days left"
+    }
+  },
+  "profile": {
+    "title": "Your profile",
+    "name": "Your name",
+    "phone": "Your phone",
+    "saved": "Saved",
+    "nameRequired": "Enter your name.",
+    "roleNote": "Only the shop owner can change your role."
   }
 }

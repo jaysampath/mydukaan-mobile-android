@@ -40,7 +40,12 @@ export default function RootLayout() {
         <StatusBar style="dark" backgroundColor={colors.background} />
         <AppErrorBoundary>
           <SessionProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.page },
+              }}
+            />
           </SessionProvider>
         </AppErrorBoundary>
       </SafeAreaProvider>

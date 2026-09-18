@@ -1,19 +1,23 @@
 import { useRouter } from 'expo-router';
+import { Fragment } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 
 import { useMe } from '../../../src/auth/context';
 import { useStock } from '../../../src/data/queries';
 import {
-  ActionBar,
   Button,
-  Card,
   Divider,
   EmptyState,
+  FAB_CLEARANCE,
+  Fab,
   Header,
+  IconBadge,
+  ListRow,
   Loading,
   Money,
   PackSize,
   Qty,
+  Section,
   Text,
 } from '../../../src/theme/components';
 import { space } from '../../../src/theme/tokens';
@@ -44,12 +48,14 @@ export default function Stock() {
         <Loading />
       ) : empty ? (
         <EmptyState
+          icon="cube-outline"
           title={t('stock.empty')}
           detail={t('stock.emptyDetail')}
           action={
             me.can('manage_masters') ? (
               <Button
                 label={t('catalog.newMaterial')}
+                icon="add"
                 onPress={() => router.push('/(owner)/catalog/material')}
               />
             ) : undefined
@@ -57,73 +63,72 @@ export default function Stock() {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: space.lg, gap: space.md }}
+          contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: FAB_CLEARANCE }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         >
-          <Card>
-            <Text variant="bodyStrong">{t('stock.bulk')}</Text>
-            {raw.map((m) => (
-              <View key={m.raw_material_id}>
-                <Divider />
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: space.sm,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text variant="body">{m.name}</Text>
-                    {m.below_reorder ? (
-                      <Text variant="meta" tone="warning">
-                        {t('stock.belowReorder')}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Qty
-                    value={m.qty_base}
-                    kind="RAW"
-                    baseUnit={m.base_unit}
-                    tone={m.below_reorder ? 'warning' : 'default'}
+          {raw.length > 0 ? (
+            <Section title={t('stock.bulk')} icon="leaf-outline">
+              {raw.map((m, i) => (
+                <Fragment key={m.raw_material_id}>
+                  {i > 0 ? <Divider inset /> : null}
+                  <ListRow
+                    leading={
+                      <IconBadge
+                        name={m.below_reorder ? 'alert-circle-outline' : 'leaf-outline'}
+                        tone={m.below_reorder ? 'warning' : 'primary'}
+                      />
+                    }
+                    title={m.name}
+                    subtitle={
+                      m.below_reorder ? (
+                        <Text variant="secondary" tone="warning">
+                          {t('stock.belowReorder')}
+                        </Text>
+                      ) : undefined
+                    }
+                    right={
+                      <Qty
+                        value={m.qty_base}
+                        kind="RAW"
+                        baseUnit={m.base_unit}
+                        tone={m.below_reorder ? 'warning' : 'default'}
+                      />
+                    }
                   />
-                </View>
-              </View>
-            ))}
-          </Card>
+                </Fragment>
+              ))}
+            </Section>
+          ) : null}
 
-          <Card>
-            <Text variant="bodyStrong">{t('stock.packed')}</Text>
-            {packed.map((s) => (
-              <View key={s.packed_sku_id}>
-                <Divider />
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: space.sm,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text variant="body">{s.name}</Text>
-                    <View style={{ flexDirection: 'row', gap: space.sm }}>
-                      <PackSize value={s.pack_size_base} />
-                      <Money value={s.sale_price} variant="meta" tone="muted" />
-                    </View>
-                  </View>
-                  <Qty value={s.qty_packets} kind="PACKED" />
-                </View>
-              </View>
-            ))}
-          </Card>
+          {packed.length > 0 ? (
+            <Section title={t('stock.packed')} icon="cube-outline">
+              {packed.map((s, i) => (
+                <Fragment key={s.packed_sku_id}>
+                  {i > 0 ? <Divider inset /> : null}
+                  <ListRow
+                    leading={<IconBadge name="cube-outline" tone="info" />}
+                    title={s.name}
+                    subtitle={
+                      <View style={{ flexDirection: 'row', gap: space.sm }}>
+                        <PackSize value={s.pack_size_base} />
+                        <Money value={s.sale_price} variant="secondary" tone="muted" />
+                      </View>
+                    }
+                    right={<Qty value={s.qty_packets} kind="PACKED" />}
+                  />
+                </Fragment>
+              ))}
+            </Section>
+          ) : null}
         </ScrollView>
       )}
 
-      {me.can('adjust_stock') ? (
-        <ActionBar>
-          <Button label={t('stock.adjust')} onPress={() => router.push('/(owner)/stock/adjust')} />
-        </ActionBar>
+      {me.can('adjust_stock') && !empty ? (
+        <Fab
+          label={t('home.enterStock')}
+          icon="archive-outline"
+          onPress={() => router.push('/(owner)/stock/adjust')}
+        />
       ) : null}
     </>
   );

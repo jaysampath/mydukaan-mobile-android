@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { FlatList, RefreshControl, ScrollView, View } from 'react-native';
 
-import { useSession } from '../../src/auth/session';
 import { useOrder, useOrders } from '../../src/data/queries';
 import { useSetOrderStatus } from '../../src/data/mutations';
 import { mapRpcError } from '../../src/data/errors';
 import {
   ActionBar,
   Button,
+  Avatar,
   Card,
-  Divider,
   EmptyState,
+  Gap,
   Header,
   ListRow,
   Loading,
@@ -35,7 +35,6 @@ import { t } from '../../src/i18n';
  */
 export default function ToPack() {
   const [openId, setOpenId] = useState<string | null>(null);
-  const { signOut } = useSession();
   const queue = useOrders({ statuses: ['PLACED'] });
   const detail = useOrder(openId ?? undefined);
   const setStatus = useSetOrderStatus();
@@ -61,6 +60,7 @@ export default function ToPack() {
         <Header
           title={d.customer.name}
           subtitle={d.order.order_no ? t('orders.orderNo', { no: d.order.order_no }) : undefined}
+          onBack={() => setOpenId(null)}
         />
         <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
           {d.items.map((item) => (
@@ -79,6 +79,7 @@ export default function ToPack() {
         <ActionBar>
           <Button
             label={t('orders.markPacked')}
+            icon="checkmark-circle-outline"
             onPress={markPacked}
             loading={setStatus.isPending}
           />
@@ -92,32 +93,36 @@ export default function ToPack() {
 
   return (
     <>
-      <Header
-        title={t('packer.title')}
-        back={false}
-        right={
-          <Button label={t('common.signOut')} kind="ghost" block={false} onPress={signOut} />
-        }
-      />
+      <Header title={t('packer.title')} back={false} />
       {queue.isLoading && rows.length === 0 ? (
         <Loading />
       ) : (
         <FlatList
           data={rows}
           keyExtractor={(o) => o.id}
-          ItemSeparatorComponent={Divider}
+          ItemSeparatorComponent={Gap}
+          contentContainerStyle={{ padding: space.lg, flexGrow: 1 }}
           refreshControl={
             <RefreshControl refreshing={queue.isRefetching} onRefresh={queue.refetch} />
           }
           ListEmptyComponent={
-            <EmptyState title={t('packer.empty')} detail={t('packer.emptyDetail')} />
+            <EmptyState
+              icon="cube-outline"
+              title={t('packer.empty')}
+              detail={t('packer.emptyDetail')}
+            />
           }
           renderItem={({ item }) => (
             <ListRow
+              card
               tall
+              leading={<Avatar name={item.customer_name} size={48} />}
               onPress={() => setOpenId(item.id)}
               title={<Text variant="title">{item.customer_name}</Text>}
-              subtitle={`${item.item_count} item(s) · ${formatWhen(item.placed_at)}`}
+              subtitle={[
+                t('orders.itemCount', { count: item.item_count }),
+                formatWhen(item.placed_at),
+              ].join(' · ')}
             />
           )}
         />
