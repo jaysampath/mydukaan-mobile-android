@@ -272,7 +272,14 @@ export function dispatchOrder(orderId: string): Promise<{ already_dispatched: bo
 
 export type SettableOrderStatus = 'PACKED' | 'DELIVERED' | 'PAYMENT_PENDING' | 'CANCELLED';
 
-export function setOrderStatus(orderId: string, status: SettableOrderStatus): Promise<unknown> {
+/**
+ * `status` is where the order actually ended up, which can differ from the one
+ * asked for: delivering a prepaid order closes it on the spot (migration 0021).
+ */
+export function setOrderStatus(
+  orderId: string,
+  status: SettableOrderStatus,
+): Promise<{ order_id: string; status: string; settled_orders: number[] }> {
   return callRpc('set_order_status', { p_order_id: orderId, p_status: status });
 }
 
@@ -285,7 +292,15 @@ export function recordPayment(args: {
   orderId?: string | null;
   paidOn?: string | null;
   note?: string | null;
-}): Promise<{ created: boolean; customer_outstanding: number }> {
+}): Promise<{
+  created: boolean;
+  customer_outstanding: number;
+  /**
+   * Order numbers this payment closed. A khata payment settles the customer's
+   * oldest orders first, so it can close several; absent on a retried call.
+   */
+  settled_orders?: number[];
+}> {
   return callRpc('record_payment', {
     p_payment_id: args.paymentId,
     p_customer_id: args.customerId,

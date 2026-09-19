@@ -109,6 +109,17 @@ export default function OrderDetail() {
             </Text>
             <Money value={data.paid} variant="numericSmall" tone="success" />
           </View>
+          {/* Paid includes the customer's account credit applied to this
+              order (oldest orders first), so the payments listed for the order
+              alone would not add up to it without this line. */}
+          {data.paid_from_account > 0 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text variant="meta" tone="muted">
+                {t('orders.fromAccount')}
+              </Text>
+              <Money value={data.paid_from_account} variant="meta" tone="muted" />
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text variant="secondary" tone="muted">
               {t('orders.balance')}

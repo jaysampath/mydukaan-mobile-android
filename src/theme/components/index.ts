@@ -15,6 +15,7 @@ export {
   Stat,
 } from './Layout';
 export { Field, NumberField, Stepper, SearchBar, Choice } from './Field';
+export { Select, type SelectOption } from './Select';
 export { StatusBanners, Header } from './Chrome';
 export { Icon, type IconName } from './Icon';
 export { Avatar } from './Avatar';

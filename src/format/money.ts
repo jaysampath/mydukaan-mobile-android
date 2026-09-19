@@ -67,3 +67,21 @@ export function formatMoney(
 
   return withSymbol ? `₹${body}` : body;
 }
+
+/**
+ * Cost per base unit (per gram, usually) from what was actually paid.
+ *
+ * People know the bill total -- "₹900 for the bag" -- not a per-gram price, so
+ * the screen asks for the total and the purchase line is stored per base unit,
+ * which is what create_purchase expects. Null when either side is missing,
+ * zero or not a number: no cost is better than a cost of Infinity.
+ */
+export function unitCostPerBase(
+  totalPaid: number | null | undefined,
+  qtyBase: number | null | undefined,
+): number | null {
+  if (totalPaid == null || qtyBase == null) return null;
+  if (!Number.isFinite(totalPaid) || !Number.isFinite(qtyBase)) return null;
+  if (totalPaid <= 0 || qtyBase <= 0) return null;
+  return totalPaid / qtyBase;
+}

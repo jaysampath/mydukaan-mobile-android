@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatMoney, groupIndian } from './money';
-import { formatPackSize, formatPackedQty, formatQty, formatRawQty } from './qty';
+import { formatMoney, groupIndian, unitCostPerBase } from './money';
+import {
+  bulkInputToBase,
+  bulkInputUnit,
+  formatPackSize,
+  formatPackedQty,
+  formatQty,
+  formatRawQty,
+} from './qty';
 import { formatDate, formatTime, formatWhen, parseWhen, todayIso } from './date';
 
 /**
@@ -185,5 +192,54 @@ describe('formatDate', () => {
 describe('todayIso', () => {
   it('zero-pads, because Postgres wants a real ISO date', () => {
     expect(todayIso(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('bulk entry', () => {
+  it('takes kilograms and stores grams', () => {
+    expect(bulkInputToBase('2.5', 'g')).toBe(2500);
+    expect(bulkInputToBase('25', 'g')).toBe(25000);
+  });
+
+  it('does not leak floating-point noise into the ledger', () => {
+    // 2.3 * 1000 is 2300.0000000000005 in JavaScript.
+    expect(bulkInputToBase('2.3', 'g')).toBe(2300);
+  });
+
+  it('reads a comma as a decimal point', () => {
+    expect(bulkInputToBase('1,5', 'g')).toBe(1500);
+  });
+
+  it('keeps the sign, for stock that left', () => {
+    expect(bulkInputToBase('-0.25', 'g')).toBe(-250);
+  });
+
+  it('leaves pieces alone', () => {
+    expect(bulkInputToBase('12', 'pcs')).toBe(12);
+  });
+
+  it('refuses anything that is not a number', () => {
+    expect(bulkInputToBase('abc', 'g')).toBeNull();
+    expect(bulkInputToBase('', 'g')).toBeNull();
+    expect(bulkInputToBase('-', 'g')).toBeNull();
+  });
+
+  it('names the unit being typed', () => {
+    expect(bulkInputUnit('g')).toBe('kg');
+    expect(bulkInputUnit('ml')).toBe('L');
+    expect(bulkInputUnit('pcs')).toBe('pcs');
+  });
+});
+
+describe('unitCostPerBase', () => {
+  it('turns a bill total into a per-gram cost', () => {
+    expect(unitCostPerBase(900, 2500)).toBe(0.36);
+  });
+
+  it('is null rather than zero or Infinity when something is missing', () => {
+    expect(unitCostPerBase(0, 2500)).toBeNull();
+    expect(unitCostPerBase(900, 0)).toBeNull();
+    expect(unitCostPerBase(null, 2500)).toBeNull();
+    expect(unitCostPerBase(Number.NaN, 2500)).toBeNull();
   });
 });

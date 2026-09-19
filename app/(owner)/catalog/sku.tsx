@@ -8,7 +8,6 @@ import { mapRpcError } from '../../../src/data/errors';
 import {
   ActionBar,
   Button,
-  Choice,
   Divider,
   EmptyState,
   Field,
@@ -19,8 +18,10 @@ import {
   NumberField,
   PackSize,
   Qty,
+  Select,
   Text,
 } from '../../../src/theme/components';
+import { formatQty } from '../../../src/format/qty';
 import { space } from '../../../src/theme/tokens';
 import { t } from '../../../src/i18n';
 
@@ -77,11 +78,15 @@ export default function Skus() {
       <>
         <Header title={t('catalog.newSku')} />
         <View style={{ padding: space.lg, gap: space.md }}>
-          <Choice
+          <Select
             label={t('catalog.bulkProduct')}
             value={editing.rawMaterialId}
             onChange={(v) => setEditing({ ...editing, rawMaterialId: v })}
-            options={(materials.data ?? []).map((m) => ({ value: m.id, label: m.name }))}
+            options={(materials.data ?? []).map((m) => ({
+              value: m.id,
+              label: m.name,
+              detail: formatQty(m.qty_base, 'RAW', m.base_unit),
+            }))}
           />
           <Field
             label={t('catalog.name')}
@@ -171,7 +176,9 @@ export default function Skus() {
           onPress={() =>
             setEditing({
               id: newId(),
-              rawMaterialId: materials.data?.[0]?.id ?? '',
+              // Preselect only when there is no choice to make. A closed
+              // dropdown showing the first product is easy to save unread.
+              rawMaterialId: materials.data?.length === 1 ? materials.data[0].id : '',
               name: '',
               packSize: '',
               price: '',

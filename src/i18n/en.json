@@ -13,7 +13,9 @@
     "noConnection": "No connection. Check your network and try again.",
     "notAllowed": "You do not have permission to do that.",
     "notFound": "That record no longer exists.",
-    "all": "All"
+    "all": "All",
+    "choose": "Choose…",
+    "noOptions": "Nothing to choose yet"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -85,7 +87,18 @@
     "willBecome": "After saving it will show",
     "noChange": "That matches what the app already shows. Nothing to save.",
     "ledger": "History",
-    "belowReorder": "Low"
+    "belowReorder": "Low",
+    "modeReceived": "New stock arrived",
+    "receivedLabel": "How much arrived",
+    "amountPaid": "Amount paid (optional)",
+    "amountPaidHint": "The bill total, in rupees",
+    "supplier": "Supplier (optional)",
+    "packetsFromPacking": "Packets are made from bulk in a packing run. Record the run and the packets are added for you, with the bulk taken off.",
+    "goToPacking": "New packing run",
+    "receivedNote": "New stock arrived",
+    "hintInUnit": "In {{unit}}",
+    "hintWholePackets": "Whole packets",
+    "hintMinus": "Use a minus sign for stock that left"
   },
   "orders": {
     "title": "Orders",
@@ -119,7 +132,9 @@
     "share": "Share",
     "noItems": "Add at least one item.",
     "unpaid": "Unpaid",
-    "itemCount": "{{count}} item(s)"
+    "itemCount": "{{count}} item(s)",
+    "fromAccount": "Covered from account",
+    "fromAccountNote": "{{amount}} of this was covered by money paid on their account."
   },
   "packer": {
     "title": "To pack",
@@ -150,10 +165,12 @@
     "payTitle": "Record cash",
     "amount": "Amount received",
     "againstOrder": "Against an order",
-    "againstAccount": "Against their account",
+    "againstAccount": "Goes against their account. It pays off their oldest unpaid orders first.",
     "note": "Note",
     "record": "Record payment",
-    "lastPaid": "Last paid"
+    "lastPaid": "Last paid",
+    "paymentRecorded": "Payment recorded.",
+    "settledOrders": "Payment recorded. It settled {{orders}}."
   },
   "catalog": {
     "title": "Products & people",

@@ -208,6 +208,13 @@ export interface OrderRow {
   cancelled_at: string | null;
   paid: number;
   balance: number;
+  /**
+   * The part of `paid` covered by the customer's account credit rather than
+   * cash handed over for this order (migration 0021: khata payments settle the
+   * oldest orders first). `paid` includes it; show it so the listed payments
+   * plus this add up to `paid`.
+   */
+  paid_from_account: number;
   item_count: number;
 }
 
@@ -274,9 +281,17 @@ export interface OrderDetail {
     /** On the shelf right now, so dispatch can show "4 needed, 20 on hand". */
     qty_on_hand: number;
   }>;
+  /** Only the cash handed over for THIS order. */
   payments: Array<{ id: string; amount: number; paid_on: string; note: string | null }>;
   paid: number;
   balance: number;
+  /**
+   * The part of `paid` covered by the customer's account credit rather than
+   * cash handed over for this order (migration 0021: khata payments settle the
+   * oldest orders first). `paid` includes it; show it so the listed payments
+   * plus this add up to `paid`.
+   */
+  paid_from_account: number;
   customer_outstanding: number;
   allowed_transitions: OrderAction[];
 }
@@ -447,6 +462,8 @@ export interface CustomerLedger {
     total_amount: number;
     placed_at: string;
     paid: number;
+    balance: number;
+    paid_from_account: number;
   }>;
   payments: Page<{
     id: string;
@@ -603,6 +620,13 @@ export interface Receipt {
   }>;
   paid: number;
   balance: number;
+  /**
+   * The part of `paid` covered by the customer's account credit rather than
+   * cash handed over for this order (migration 0021: khata payments settle the
+   * oldest orders first). `paid` includes it; show it so the listed payments
+   * plus this add up to `paid`.
+   */
+  paid_from_account: number;
   customer_outstanding: number;
   /**
    * Always PAYMENT_RECEIPT. Stated on the document so it is never mistaken for

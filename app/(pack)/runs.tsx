@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ScrollView, View } from 'react-native';
 
 import { newId } from '../../src/api/ids';
@@ -10,7 +11,6 @@ import {
   ActionBar,
   Button,
   Card,
-  Choice,
   Divider,
   EmptyState,
   Header,
@@ -18,10 +18,11 @@ import {
   Loading,
   NumberField,
   Qty,
+  Select,
   Text,
 } from '../../src/theme/components';
 import { formatDate } from '../../src/format/date';
-import { formatRawQty } from '../../src/format/qty';
+import { formatPackSize, formatQty, formatRawQty } from '../../src/format/qty';
 import { space } from '../../src/theme/tokens';
 import { t } from '../../src/i18n';
 
@@ -39,9 +40,20 @@ import { t } from '../../src/i18n';
  */
 export default function PackingRuns() {
   const me = useMe();
-  const runId = useRef(newId()).current;
+  const router = useRouter();
+  // A ref, not a constant: after a run is saved the next one needs a fresh
+  // id, or the server reads it as a retry of the first and records nothing.
+  const runId = useRef(newId());
 
-  const [creating, setCreating] = useState(false);
+  // Enter stock -> Packets -> "New stock arrived" sends people here with
+  // ?new=1, straight into the form. The tab may already be mounted, so follow
+  // the param as well as reading it on first render.
+  const params = useLocalSearchParams<{ new?: string }>();
+  const fromLink = params.new === '1';
+  const [creating, setCreating] = useState(fromLink);
+  useEffect(() => {
+    if (fromLink) setCreating(true);
+  }, [fromLink]);
   const [materialId, setMaterialId] = useState('');
   const [skuId, setSkuId] = useState('');
   const [consumed, setConsumed] = useState('');
@@ -62,19 +74,23 @@ export default function PackingRuns() {
     setError(null);
     try {
       await create.mutateAsync({
-        runId,
+        runId: runId.current,
         rawMaterialId: materialId,
         packedSkuId: skuId,
         packetsProduced: Number(packets),
         rawConsumedBase: Number(consumed),
       });
-      setCreating(false);
+      runId.current = newId();
       setConsumed('');
       setPackets('');
+      closeForm();
     } catch (e) {
       setError(mapRpcError(e).message);
     }
   };
+
+  // Arrived from another screen: go back there. Opened here: just close the form.
+  const closeForm = () => (fromLink ? router.back() : setCreating(false));
 
   if (!me.hasPacking) {
     return (
@@ -92,23 +108,31 @@ export default function PackingRuns() {
     const valid = materialId && skuId && Number(packets) > 0 && Number(consumed) > 0 && !impossible;
     return (
       <>
-        <Header title={t('packer.newRun')} />
+        <Header title={t('packer.newRun')} onBack={closeForm} />
         <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
-          <Choice
+          <Select
             label={t('stock.bulk')}
             value={materialId}
             onChange={(v) => {
               setMaterialId(v);
               setSkuId('');
             }}
-            options={(materials.data ?? []).map((m) => ({ value: m.id, label: m.name }))}
+            options={(materials.data ?? []).map((m) => ({
+              value: m.id,
+              label: m.name,
+              detail: formatQty(m.qty_base, 'RAW', m.base_unit),
+            }))}
           />
           {materialId ? (
-            <Choice
+            <Select
               label={t('catalog.skus')}
               value={skuId}
               onChange={setSkuId}
-              options={(skus.data ?? []).map((s) => ({ value: s.id, label: s.name }))}
+              options={(skus.data ?? []).map((s) => ({
+                value: s.id,
+                label: s.name,
+                detail: formatPackSize(s.pack_size_base),
+              }))}
             />
           ) : null}
           <NumberField
@@ -157,7 +181,7 @@ export default function PackingRuns() {
             loading={create.isPending}
             disabled={!valid}
           />
-          <Button label={t('common.cancel')} kind="ghost" onPress={() => setCreating(false)} />
+          <Button label={t('common.cancel')} kind="ghost" onPress={closeForm} />
         </ActionBar>
       </>
     );

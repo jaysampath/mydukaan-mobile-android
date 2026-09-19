@@ -213,6 +213,7 @@ describe.skipIf(!URL_BASE || !KEY)('the read layer still has the shape the app r
         total_amount: 'number',
         paid: 'number',
         balance: 'number',
+        paid_from_account: 'number',
         item_count: 'number',
         placed_at: 'iso',
       });
@@ -231,6 +232,7 @@ describe.skipIf(!URL_BASE || !KEY)('the read layer still has the shape the app r
       payments: 'array',
       paid: 'number',
       balance: 'number',
+      paid_from_account: 'number',
       allowed_transitions: 'array',
     });
     expectShape('order detail.order', detail.order, {

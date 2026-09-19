@@ -77,6 +77,11 @@ export function receiptHtml(r: Receipt): string {
     <table class="totals">
       <tr class="grand"><td>Total</td><td class="num">${escapeHtml(formatMoney(r.order.total_amount))}</td></tr>
       <tr><td class="muted">Paid</td><td class="num">${escapeHtml(formatMoney(r.paid))}</td></tr>
+      ${
+        r.paid_from_account > 0
+          ? `<tr><td class="muted">of which from account</td><td class="num">${escapeHtml(formatMoney(r.paid_from_account))}</td></tr>`
+          : ''
+      }
       <tr><td class="muted">Balance</td><td class="num">${escapeHtml(formatMoney(r.balance))}</td></tr>
       <tr><td class="muted">Account balance</td><td class="num">${escapeHtml(formatMoney(r.customer_outstanding))}</td></tr>
     </table>

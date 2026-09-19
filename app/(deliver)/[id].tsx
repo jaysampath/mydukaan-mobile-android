@@ -19,6 +19,7 @@ import {
   StatusPill,
   Text,
 } from '../../src/theme/components';
+import { formatMoney } from '../../src/format/money';
 import { space } from '../../src/theme/tokens';
 import { t } from '../../src/i18n';
 
@@ -36,7 +37,10 @@ import { t } from '../../src/i18n';
 export default function Delivery() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const paymentId = useRef(newId()).current;
+  // A ref, not a constant: the courier can take two part payments without
+  // leaving this screen, and a reused id is read as a retry -- the second
+  // payment would silently not be recorded.
+  const paymentId = useRef(newId());
 
   const { data, isLoading } = useOrder(id);
   const setStatus = useSetOrderStatus();
@@ -56,11 +60,12 @@ export default function Delivery() {
     setError(null);
     try {
       await record.mutateAsync({
-        paymentId,
+        paymentId: paymentId.current,
         customerId: data.customer.id,
         amount: parsed,
         orderId: id,
       });
+      paymentId.current = newId();
       setCollecting(false);
     } catch (e) {
       setError(mapRpcError(e).message);
@@ -108,6 +113,12 @@ export default function Delivery() {
             </Text>
             <Money value={data.balance} variant="numeric" tone="warning" />
           </View>
+          {/* So the courier does not collect what the khata already covered. */}
+          {data.paid_from_account > 0 ? (
+            <Text variant="meta" tone="muted">
+              {t('orders.fromAccountNote', { amount: formatMoney(data.paid_from_account) })}
+            </Text>
+          ) : null}
           {/* What they owe overall, not just on this order -- a delivery person
               collecting cash needs the running khata, not one invoice. */}
           <Text variant="meta" tone="muted">

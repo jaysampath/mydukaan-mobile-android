@@ -15,7 +15,9 @@
  *
  * Bump this when adopting a server change.
  */
-export const API_CONTRACT_VERSION = 1;
+// 2: order paid/balance are derived with account payments allocated oldest
+//    first, and paid_from_account was added (migration 0021).
+export const API_CONTRACT_VERSION = 2;
 
 export interface ApiContract {
   /** Bumps on any change to a read or write payload shape. Informational. */

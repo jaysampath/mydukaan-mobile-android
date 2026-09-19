@@ -9,6 +9,7 @@ import { useRecordPayment } from '../../../src/data/mutations';
 import { mapRpcError } from '../../../src/data/errors';
 import {
   ActionBar,
+  Banner,
   Button,
   Card,
   Divider,
@@ -30,7 +31,9 @@ import { t } from '../../../src/i18n';
  * Payment here is recorded against the ACCOUNT, not an order
  * (`p_order_id: null`), which is how cash actually arrives: a customer settles
  * some of what they owe, days later, without reference to which delivery it was
- * for. `record_payment` still closes individual orders as the balance allows.
+ * for. Since migration 0021 the server applies that credit to the customer's
+ * oldest unpaid orders first and closes the delivered ones it fully covers;
+ * `settled_orders` in the reply says which, and this screen tells the owner.
  *
  * The reminder button deep-links to a WhatsApp chat. A text message CAN be
  * pre-filled into a specific chat from Expo; a FILE cannot, which is why
@@ -42,13 +45,17 @@ export default function CustomerLedger() {
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
   const router = useRouter();
   const me = useMe();
-  const paymentId = useRef(newId()).current;
+  // A ref, not a constant: after a payment is saved the next one needs a
+  // fresh id, or the server reads it as a retry of the first and records
+  // nothing -- cash silently not booked.
+  const paymentId = useRef(newId());
 
   const { data, isLoading } = useCustomerLedger(customerId);
   const record = useRecordPayment();
   const [amount, setAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   if (isLoading || !data) return <Loading />;
 
@@ -58,16 +65,26 @@ export default function CustomerLedger() {
 
   const submit = async () => {
     setError(null);
+    setNotice(null);
     try {
-      await record.mutateAsync({
-        paymentId,
+      const result = await record.mutateAsync({
+        paymentId: paymentId.current,
         customerId,
         amount: parsed,
         // Deliberately not tied to an order: this is money against the khata.
         note: 'Account payment',
       });
+      paymentId.current = newId();
       setPaying(false);
       setAmount('');
+      const settled = result.settled_orders ?? [];
+      setNotice(
+        settled.length > 0
+          ? t('khata.settledOrders', {
+              orders: settled.map((no) => t('orders.orderNo', { no })).join(', '),
+            })
+          : t('khata.paymentRecorded'),
+      );
     } catch (e) {
       setError(mapRpcError(e).message);
     }
@@ -109,6 +126,8 @@ export default function CustomerLedger() {
             />
           </View>
         </Card>
+
+        {notice ? <Banner tone="success" title={notice} /> : null}
 
         {paying ? (
           <Card>
@@ -159,6 +178,11 @@ export default function CustomerLedger() {
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 2 }}>
                   <Money value={o.total_amount} />
+                  {o.balance > 0 ? (
+                    <Text variant="meta" tone="warning">
+                      {t('orders.balance')} {formatMoney(o.balance)}
+                    </Text>
+                  ) : null}
                   <StatusPill status={o.status} />
                 </View>
               </View>

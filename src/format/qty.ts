@@ -76,3 +76,30 @@ export function formatPackSize(
 ): string {
   return formatRawQty(packSizeBase, baseUnit);
 }
+
+/**
+ * The unit a person types bulk in. Nobody weighs 25 kg of turmeric and thinks
+ * "25000", so entry uses the large unit and the conversion happens here, once,
+ * like every other factor of 1000 in this app.
+ */
+export function bulkInputUnit(baseUnit: BaseUnit = 'g'): 'kg' | 'L' | 'pcs' {
+  return baseUnit === 'g' ? 'kg' : baseUnit === 'ml' ? 'L' : 'pcs';
+}
+
+/**
+ * What the person typed (in `bulkInputUnit`) -> the base unit the server
+ * stores. "2.5" kg -> 2500 g. Rounded to a whole base unit, because
+ * 2.3 * 1000 is 2300.0000000000005 in floating point.
+ *
+ * A comma is read as a decimal point, since some Android keyboards offer only
+ * that. Returns null for anything that is not a number, so the screen can keep
+ * Save disabled rather than send NaN. The sign is kept: "Something moved"
+ * needs negatives.
+ */
+export function bulkInputToBase(text: string, baseUnit: BaseUnit = 'g'): number | null {
+  const cleaned = text.trim().replace(',', '.');
+  if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n)) return null;
+  return baseUnit === 'pcs' ? n : Math.round(n * 1000);
+}
